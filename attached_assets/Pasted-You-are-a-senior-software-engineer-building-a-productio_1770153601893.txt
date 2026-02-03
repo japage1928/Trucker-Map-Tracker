@@ -1,0 +1,92 @@
+You are a senior software engineer building a production-ready, phone-first Progressive Web App (PWA).
+
+PROJECT GOAL:
+Build a clean, structured input/output database web application for semi-truck pickup and delivery locations. The app prioritizes readability, structured data, and last-mile location intelligence. This is NOT a navigation or routing app.
+
+CORE CONSTRAINTS:
+- Keep architecture simple and boring.
+- No social features (no comments, ratings, likes, voting).
+- No routing, turn-by-turn navigation, traffic, or ETA logic.
+- Editing overwrites previous data (single source of truth).
+- Focus on correctness, clarity, and maintainability.
+
+TECH STACK REQUIREMENTS:
+- React + Vite (using the official react-ts template)
+- TypeScript (strict mode enabled)
+- PWA support via vite-plugin-pwa (latest version: include manifest, service worker, offline shell, installable, prompt for new content when available)
+- Local-first persistence (use localStorage or IndexedDB; prepare IndexedDB schema for future multi-user sync without implementing sync now)
+- Cloud-ready structure but no backend required yet
+- GitHub-friendly repo structure
+
+FUNCTIONAL REQUIREMENTS:
+The app must allow the user to:
+- Create locations
+- Read locations (list view + detail view)
+- Update locations (overwrites previous version)
+
+Each location includes the following structured fields (all required unless noted):
+- name (string)
+- address (string)
+- locationType (enum: "pickup" | "delivery" | "both")
+- hoursOfOperation (string, free-text or structured)
+- sopOnArrival (string, standard operating procedure on arrival)
+- parkingInstructions (string)
+- dockType (enum: "live" | "drop" | "mixed")
+- lastMileRouteNotes (string)
+- gotchas (string, any warnings or issues)
+- lastVerified (Date, auto-updated on every edit)
+
+MAP REQUIREMENTS:
+- Use React Leaflet + Leaflet for maps (open-source, lightweight, no API key required; use free OpenStreetMap tiles)
+- Display a contextual map for each location in the detail view
+- One primary facility pin (non-draggable, centered on address/geocode if possible)
+- Multiple ENTRY pins and EXIT pins per location (draggable for manual adjustment)
+- Each pin includes:
+  - type (entry | exit)
+  - short label (e.g., "Gate A")
+  - short instruction text (e.g., "Use right lane")
+- Show nearby cross streets and landmarks via OSM tiles
+- Map is for orientation only (no routing, directions, or traffic)
+- Tap/click map to expand to full-screen view
+
+DATA MODEL REQUIREMENTS:
+- Define TypeScript interfaces: Location (with id: string, fields above, pins: Pin[])
+- Pin interface: { id: string, type: "entry" | "exit", lat: number, lng: number, label: string, instruction: string }
+- Locations own their pins (pins not created/edited independently)
+- All edits overwrite previous state (no versioning/history yet)
+- Use UUIDs for IDs
+- Prepare schema/layout for future multi-user expansion (e.g., separate user-owned data if needed later)
+
+UX REQUIREMENTS:
+- Phone-first layout (responsive, mobile-optimized)
+- Dark mode default (with light mode toggle if easy)
+- One location per detail screen
+- Large, readable typography
+- Map preview at top of location detail view
+- Tap map to expand/full-screen
+- Simple navigation (list → detail → edit/create forms)
+
+PWA REQUIREMENTS:
+- Use vite-plugin-pwa for automatic setup
+- Include manifest.json (sensible name: "Truck Locations", short_name: "Trucks", theme_color, background_color, display: standalone)
+- Service worker with offline shell support (app loads and shows cached UI without network)
+- Installable on mobile (prompt appears)
+- Sensible app icons (use placeholders or generate simple ones via pwa-assets if plugin supports)
+
+DELIVERABLES:
+- Full GitHub-ready project scaffold (created via npm create vite@latest --template react-ts, then add vite-plugin-pwa)
+- Clear folder separation: src/components, src/pages (or routes), src/services (data/persistence), src/models (interfaces), src/assets, src/hooks
+- Basic README.md explaining: setup (npm install & npm run dev), PWA install behavior, how to add locations/maps
+- Minimal but functional UI with CRUD flows
+- Working map component with draggable entry/exit pins
+- Local persistence so data survives refresh/offline
+
+DO NOT:
+- Add authentication
+- Add comments or social features
+- Add routing or GPS navigation
+- Over-engineer state management (use React Context + localStorage/IndexedDB is fine; no Redux/Zustand unless truly needed)
+- Use paid map providers (stick to OSM + Leaflet)
+
+OUTPUT EXPECTATION:
+Generate the complete project structure with key files populated (vite.config.ts with PWA plugin, main.tsx, App.tsx, sample components/pages, models, etc.). Provide install commands for dependencies (e.g., leaflet, react-leaflet, @types/leaflet, uuid). Make it compilable and runnable out of the box with basic CRUD + map functionality. Prioritize correctness, clarity, and simplicity over feature richness.
