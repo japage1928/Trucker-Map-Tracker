@@ -1,6 +1,6 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { locationFormSchema, type CreateLocationRequest, locationTypeEnum, dockTypeEnum, pinTypeEnum } from "@shared/schema";
+import { locationFormSchema, type CreateLocationRequest, locationTypeEnum, dockTypeEnum } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LocationMap } from "./LocationMap";
-import { Trash2, MapPin, Save, Navigation } from "lucide-react";
+import { Trash2, MapPin, Save, Navigation, Locate, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Separator } from "@/components/ui/separator";
+import { useGeolocation } from "@/hooks/use-geolocation";
+import { useToast } from "@/hooks/use-toast";
 
 interface LocationFormProps {
   defaultValues?: Partial<CreateLocationRequest>;
@@ -19,6 +20,9 @@ interface LocationFormProps {
 }
 
 export function LocationForm({ defaultValues, onSubmit, isSubmitting }: LocationFormProps) {
+  const { getCurrentLocation, loading: geoLoading } = useGeolocation();
+  const { toast } = useToast();
+
   const form = useForm<CreateLocationRequest>({
     resolver: zodResolver(locationFormSchema),
     defaultValues: defaultValues || {
@@ -31,9 +35,48 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
       dockType: "live",
       lastMileRouteNotes: "",
       gotchas: "",
-      pins: []
+      pins: [],
+      addressSource: "manual"
     }
   });
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      const result = await getCurrentLocation();
+      
+      form.setValue("lat", String(result.lat));
+      form.setValue("lng", String(result.lng));
+      form.setValue("accuracy", result.accuracy);
+      form.setValue("addressSource", "geocoded");
+      
+      if (result.address) {
+        form.setValue("address", result.address);
+      }
+      
+      // Also add a pin at the geocoded location if no pins exist
+      const currentPins = form.getValues("pins") || [];
+      if (currentPins.length === 0) {
+        append({
+          type: 'entry',
+          lat: String(result.lat),
+          lng: String(result.lng),
+          label: 'Current Location',
+          instruction: 'Captured from device'
+        });
+      }
+      
+      toast({
+        title: "Location captured",
+        description: "Address and coordinates updated from your current position.",
+      });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: String(err),
+      });
+    }
+  };
 
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
@@ -71,11 +114,28 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
         {/* Map Section */}
         <Card className="overflow-hidden border-border/50 shadow-lg">
           <div className="bg-muted/50 p-4 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" />
-                Pin Placement
-              </h3>
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-4 mb-1">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  Pin Placement
+                </h3>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleUseCurrentLocation}
+                  disabled={geoLoading}
+                  className="gap-2 h-8"
+                >
+                  {geoLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Locate className="h-4 w-4" />
+                  )}
+                  Use Current Location
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">Click map to add pins. Drag to adjust.</p>
             </div>
             
