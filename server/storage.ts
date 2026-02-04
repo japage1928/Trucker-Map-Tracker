@@ -39,7 +39,11 @@ export class DatabaseStorage implements IStorage {
   async createLocation(data: CreateLocationRequest): Promise<LocationWithPins> {
     const { pins: pinsData, ...locationData } = data;
     
-    const [newLocation] = await db.insert(locations).values(locationData).returning();
+    // Ensure lastVerified is set on creation
+    const [newLocation] = await db.insert(locations).values({
+      ...locationData,
+      lastVerified: new Date()
+    }).returning();
     
     const newPins: Pin[] = [];
     if (pinsData && pinsData.length > 0) {

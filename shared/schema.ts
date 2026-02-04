@@ -10,10 +10,16 @@ export const locationTypeEnum = ["pickup", "delivery", "both"] as const;
 export const dockTypeEnum = ["live", "drop", "mixed"] as const;
 export const pinTypeEnum = ["entry", "exit"] as const;
 
+export const addressSourceEnum = ["manual", "geocoded"] as const;
+
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   address: text("address").notNull(),
+  lat: text("lat"),
+  lng: text("lng"),
+  addressSource: text("address_source", { enum: addressSourceEnum }).default("manual"),
+  accuracy: integer("accuracy"),
   locationType: text("location_type", { enum: locationTypeEnum }).notNull(),
   hoursOfOperation: text("hours_of_operation").notNull(),
   sopOnArrival: text("sop_on_arrival").notNull(), // Standard Operating Procedure
