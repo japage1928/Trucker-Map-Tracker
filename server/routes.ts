@@ -16,7 +16,8 @@ export async function registerRoutes(
   });
 
   app.get(api.locations.get.path, async (req, res) => {
-    const location = await storage.getLocation(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const location = await storage.getLocation(id);
     if (!location) {
       return res.status(404).json({ message: 'Location not found' });
     }
@@ -41,8 +42,9 @@ export async function registerRoutes(
 
   app.put(api.locations.update.path, async (req, res) => {
     try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const input = api.locations.update.input.parse(req.body);
-      const location = await storage.updateLocation(req.params.id, input);
+      const location = await storage.updateLocation(id, input);
       if (!location) {
         return res.status(404).json({ message: 'Location not found' });
       }
@@ -59,7 +61,8 @@ export async function registerRoutes(
   });
 
   app.delete(api.locations.delete.path, async (req, res) => {
-    await storage.deleteLocation(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await storage.deleteLocation(id);
     res.status(204).send();
   });
 
