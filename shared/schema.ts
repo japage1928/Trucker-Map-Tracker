@@ -21,6 +21,8 @@ export const locations = pgTable("locations", {
   addressSource: text("address_source", { enum: addressSourceEnum }).default("manual"),
   accuracy: integer("accuracy"),
   locationType: text("location_type", { enum: locationTypeEnum }).notNull(),
+  category: text("category").default("general"),
+  status: text("status").default("approved"),
   hoursOfOperation: text("hours_of_operation").notNull(),
   sopOnArrival: text("sop_on_arrival").notNull(), // Standard Operating Procedure
   parkingInstructions: text("parking_instructions").notNull(),
@@ -67,6 +69,7 @@ export const insertPinSchema = createInsertSchema(pins).omit({
 
 // Composite schema for creating/updating a location WITH its pins
 export const locationFormSchema = insertLocationSchema.extend({
+  category: z.string().default("truck stop"),
   pins: z.array(insertPinSchema.omit({ locationId: true })).default([]),
 });
 

@@ -267,6 +267,31 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
 
               <FormField
                 control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="truck stop">Truck Stop</SelectItem>
+                        <SelectItem value="parking">Parking</SelectItem>
+                        <SelectItem value="scale">Scale</SelectItem>
+                        <SelectItem value="food">Food</SelectItem>
+                        <SelectItem value="rest area">Rest Area</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="dockType"
                 render={({ field }) => (
                   <FormItem>
