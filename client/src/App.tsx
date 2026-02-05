@@ -13,6 +13,7 @@ import CreateLocation from "@/pages/CreateLocation";
 import EditLocation from "@/pages/EditLocation";
 import MapView from "@/pages/MapView";
 import TrackingView from "@/pages/TrackingView";
+import DrivingScreen from "@/pages/DrivingScreen";
 import ChatPage from "@/pages/ChatPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/auth-page";
@@ -25,6 +26,7 @@ function Router() {
       <ProtectedRoute path="/list" component={LocationList} />
       <ProtectedRoute path="/map" component={MapView} />
       <ProtectedRoute path="/track" component={TrackingView} />
+      <ProtectedRoute path="/drive" component={DrivingScreen} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/new" component={CreateLocation} />
       <ProtectedRoute path="/settings" component={SettingsPage} />

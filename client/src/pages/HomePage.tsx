@@ -31,7 +31,7 @@ const dashboardButtons: DashboardButton[] = [
   {
     icon: <Navigation className="w-12 h-12" />,
     label: "Driving",
-    path: "/track",
+    path: "/drive",
     color: "bg-purple-600 hover:bg-purple-500",
   },
   {
