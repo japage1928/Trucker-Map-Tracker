@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { useLocation, useDeleteLocation } from "@/hooks/use-locations";
 import { Link, useRoute } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LocationMap } from "@/components/LocationMap";
 import { 
   ArrowLeft, Edit, Trash2, MapPin, Clock, 
-  Info, AlertTriangle, Truck, Navigation 
+  Info, AlertTriangle, Truck, Navigation, ParkingCircle, Users
 } from "lucide-react";
 import { 
   AlertDialog,
@@ -21,12 +23,66 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+type FullnessStatus = "empty" | "moderate" | "limited" | "full";
+
+const statusConfig: Record<FullnessStatus, { label: string; color: string; bgColor: string }> = {
+  empty: { label: "Empty", color: "text-green-400", bgColor: "bg-green-600" },
+  moderate: { label: "Moderate", color: "text-yellow-400", bgColor: "bg-yellow-600" },
+  limited: { label: "Limited", color: "text-orange-400", bgColor: "bg-orange-600" },
+  full: { label: "Full", color: "text-red-400", bgColor: "bg-red-600" },
+};
+
 export default function LocationDetail() {
   const [match, params] = useRoute("/locations/:id");
   const id = params?.id || "";
+  const [showReportPicker, setShowReportPicker] = useState(false);
+  const queryClient = useQueryClient();
   
   const { data: location, isLoading, error } = useLocation(id);
   const deleteMutation = useDeleteLocation();
+
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  // Fetch fullness reports for this location
+  const { data: fullnessData, isLoading: fullnessLoading, error: fullnessError } = useQuery({
+    queryKey: ["fullness-reports", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/fullness-reports/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch reports");
+      return res.json();
+    },
+    enabled: !!id,
+    refetchInterval: 60000, // Refresh every minute
+    retry: 2,
+  });
+
+  // Safe defaults for fullness data
+  const safeFullnessData = {
+    latestStatus: fullnessData?.latestStatus || null,
+    totalReports: fullnessData?.totalReports || 0,
+    statusCounts: fullnessData?.statusCounts || { empty: 0, moderate: 0, limited: 0, full: 0 },
+  };
+
+  // Submit fullness report mutation
+  const submitReport = useMutation({
+    mutationFn: async (status: FullnessStatus) => {
+      const res = await fetch("/api/fullness-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId: id, status }),
+      });
+      if (!res.ok) throw new Error("Failed to submit report");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fullness-reports", id] });
+      setShowReportPicker(false);
+      setReportError(null);
+    },
+    onError: () => {
+      setReportError("Failed to submit your report. Please try again.");
+    },
+  });
 
   if (isLoading) return <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
   if (error || !location) return <div className="text-center p-20 text-destructive">Error loading location</div>;
@@ -178,6 +234,108 @@ export default function LocationDetail() {
                {location.parkingInstructions || "No parking information available."}
              </p>
            </ScrollArea>
+        </Card>
+
+        {/* Crowdsourced Parking Status */}
+        <Card className="p-6 border-border/50 space-y-4 md:col-span-2 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ParkingCircle className="w-5 h-5 text-primary" />
+              <h3 className="font-bold text-lg">Parking Availability</h3>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Users className="w-4 h-4" />
+              <span>Crowdsourced</span>
+            </div>
+          </div>
+
+          {/* Loading state */}
+          {fullnessLoading && (
+            <div className="p-4 rounded-lg bg-muted/30 border border-border/50 text-center text-muted-foreground">
+              <p>Loading parking reports...</p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {fullnessError && !fullnessLoading && (
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-center text-destructive">
+              <p>Unable to load parking reports</p>
+            </div>
+          )}
+
+          {/* Current Status */}
+          {!fullnessLoading && !fullnessError && safeFullnessData.latestStatus ? (
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50">
+              <div className={`w-4 h-4 rounded-full ${statusConfig[safeFullnessData.latestStatus as FullnessStatus]?.bgColor || "bg-gray-500"}`} />
+              <div className="flex-1">
+                <p className={`font-semibold ${statusConfig[safeFullnessData.latestStatus as FullnessStatus]?.color || "text-gray-400"}`}>
+                  {statusConfig[safeFullnessData.latestStatus as FullnessStatus]?.label || "Unknown"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {safeFullnessData.totalReports} report{safeFullnessData.totalReports !== 1 ? "s" : ""} in last 24 hours
+                </p>
+              </div>
+              {/* Status breakdown */}
+              {safeFullnessData.totalReports > 0 && (
+                <div className="flex gap-2 text-xs flex-wrap">
+                  {(Object.keys(statusConfig) as FullnessStatus[]).map((status) => 
+                    safeFullnessData.statusCounts[status] > 0 && (
+                      <span key={status} className={statusConfig[status].color}>
+                        {safeFullnessData.statusCounts[status]} {statusConfig[status].label}
+                      </span>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          ) : !fullnessLoading && !fullnessError ? (
+            <div className="p-4 rounded-lg bg-muted/30 border border-border/50 text-center text-muted-foreground">
+              <p>No parking reports yet. Be the first to report!</p>
+            </div>
+          ) : null}
+
+          {/* Report error message */}
+          {reportError && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+              {reportError}
+            </div>
+          )}
+
+          {/* Report Button / Picker */}
+          {!showReportPicker ? (
+            <Button 
+              onClick={() => setShowReportPicker(true)}
+              className="w-full"
+              variant="outline"
+            >
+              <ParkingCircle className="w-4 h-4 mr-2" />
+              Report Parking Status
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">How full is the parking lot right now?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.keys(statusConfig) as FullnessStatus[]).map((status) => (
+                  <Button
+                    key={status}
+                    variant="outline"
+                    className={`${statusConfig[status].bgColor} border-none hover:opacity-80`}
+                    onClick={() => submitReport.mutate(status)}
+                    disabled={submitReport.isPending}
+                  >
+                    {statusConfig[status].label}
+                  </Button>
+                ))}
+              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full text-muted-foreground"
+                onClick={() => setShowReportPicker(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>
