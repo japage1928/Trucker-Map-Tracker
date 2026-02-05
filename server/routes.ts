@@ -6,6 +6,8 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import { registerTruckerAiRoutes } from "./trucker-ai";
+import { logUserEvent, getUserPreferences } from "./userMemory";
+import type { User } from "@shared/schema";
 
 // Middleware to require authentication for protected routes
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -80,6 +82,36 @@ export async function registerRoutes(
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await storage.deleteLocation(id);
     res.status(204).send();
+  });
+
+  app.post("/api/user-events", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const { eventType, locationId, category, alertType, metadata } = req.body;
+      
+      await logUserEvent(user.id, eventType, {
+        locationId,
+        category,
+        alertType,
+        metadata,
+      });
+      
+      res.status(201).json({ success: true });
+    } catch (error) {
+      console.error("Failed to log user event:", error);
+      res.status(500).json({ message: "Failed to log event" });
+    }
+  });
+
+  app.get("/api/user-preferences", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const preferences = await getUserPreferences(user.id);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Failed to get user preferences:", error);
+      res.status(500).json({ message: "Failed to get preferences" });
+    }
   });
 
   return httpServer;
