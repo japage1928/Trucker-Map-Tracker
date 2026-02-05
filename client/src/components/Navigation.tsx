@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Map, List, PlusCircle, Settings, Truck, LogOut, Navigation2 } from "lucide-react";
+import { Map, List, PlusCircle, Settings, Truck, LogOut, Navigation2, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export function Navigation() {
     { href: "/", icon: List, label: "List" },
     { href: "/map", icon: Map, label: "Map" },
     { href: "/track", icon: Navigation2, label: "Track" },
+    { href: "/chat", icon: Bot, label: "AI" },
     { href: "/new", icon: PlusCircle, label: "Add" },
   ];
 

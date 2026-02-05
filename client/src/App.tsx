@@ -12,6 +12,7 @@ import CreateLocation from "@/pages/CreateLocation";
 import EditLocation from "@/pages/EditLocation";
 import MapView from "@/pages/MapView";
 import TrackingView from "@/pages/TrackingView";
+import ChatPage from "@/pages/ChatPage";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 
@@ -21,6 +22,7 @@ function Router() {
       <ProtectedRoute path="/" component={LocationList} />
       <ProtectedRoute path="/map" component={MapView} />
       <ProtectedRoute path="/track" component={TrackingView} />
+      <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/new" component={CreateLocation} />
       <ProtectedRoute path="/locations/:id" component={LocationDetail} />
       <ProtectedRoute path="/locations/:id/edit" component={EditLocation} />

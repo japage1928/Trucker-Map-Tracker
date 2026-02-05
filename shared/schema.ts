@@ -71,6 +71,18 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Crowdsourced fullness reports for truck stops
+export const fullnessStatusEnum = ["empty", "moderate", "limited", "full"] as const;
+
+export const fullnessReports = pgTable("fullness_reports", {
+  id: serial("id").primaryKey(),
+  locationId: uuid("location_id").notNull().references(() => locations.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id),
+  status: text("status", { enum: fullnessStatusEnum }).notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // === RELATIONS ===
 export const locationsRelations = relations(locations, ({ many }) => ({
   pins: many(pins),
@@ -147,3 +159,6 @@ export type UpdateLocationRequest = Partial<CreateLocationRequest>;
 // Chat types
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+
+// Fullness report types
+export type FullnessReport = typeof fullnessReports.$inferSelect;

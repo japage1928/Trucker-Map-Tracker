@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth } from "./auth";
+import { registerTruckerAiRoutes } from "./trucker-ai";
 
 // Middleware to require authentication for protected routes
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -20,6 +21,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Setup authentication routes: /api/register, /api/login, /api/logout, /api/user
   setupAuth(app);
+  
+  // Register Trucker Buddy AI routes
+  await registerTruckerAiRoutes(app);
   
   // All location routes require authentication
   app.get(api.locations.list.path, requireAuth, async (req, res) => {

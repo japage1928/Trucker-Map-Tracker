@@ -12,6 +12,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Trucker Buddy AI Chat (Feb 2026)
+- Added /chat route with AI-powered chat assistant
+- Uses OpenAI via Replit AI Integrations (no API key required)
+- Trucker-specific personality: casual tone, uses miles, references CDL/HOS rules
+- Voice-to-text input using Web Speech API for hands-free use
+- Location-aware responses when user grants GPS permission
+- Streaming responses for real-time conversation feel
+- Conversation history stored in PostgreSQL (conversations, messages tables)
+- New files: server/trucker-ai.ts, client/src/pages/ChatPage.tsx
+
+### Crowdsourced Fullness Reports (Feb 2026)
+- Added fullness_reports table for user-submitted stop availability
+- Status options: empty, moderate, limited, full
+- API endpoints: POST /api/fullness-reports, GET /api/fullness-reports/:locationId
+- Returns aggregated counts and recent reports (last 24 hours)
+- Future integration with Google Maps traffic data for AI predictions
+
 ### Marker Clustering & Expanded Data (Feb 2026)
 - Added marker clustering to map using leaflet.markercluster
 - Nearby pins group into numbered orange clusters that expand on zoom
