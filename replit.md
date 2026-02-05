@@ -12,6 +12,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Live Tracking Feature (Feb 2026)
+- Added /track route with continuous GPS tracking
+- Uses device heading/bearing to show "stops ahead" in direction of travel
+- Forward-facing cone filter (90 degrees) excludes POIs behind the truck
+- Map centers slightly ahead of truck position, not directly on top
+- Stops Ahead panel shows distance, category, and tap-to-center
+- Configurable range: 5, 10, 25, or 50 miles
+- Throttled GPS updates (every 3 seconds, 50m minimum movement) for performance
+- New files: use-tracking.ts, geo-utils.ts, TrackingView.tsx, TrackingMap.tsx, StopsAheadPanel.tsx
+
+### UI Improvements (Feb 2026)
+- Form fields now conditional based on facility type (warehouse shows dock/delivery info, truck stops don't)
+- Map popup shows facility name, type, address, hours when clicking POI
+- Map centers on user's GPS location on load
+- Bottom navigation buttons evenly distributed
+
 ### Authentication System (Feb 2026)
 - Added email/password authentication with Passport.js local strategy
 - Users table with id, username, password (hashed), createdAt
