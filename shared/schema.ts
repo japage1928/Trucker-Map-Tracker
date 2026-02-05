@@ -71,6 +71,31 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// User behavior events for preference learning
+export const userEventTypeEnum = ["fuel_stop", "parking_stop", "food_stop", "shutdown", "alert_shown", "alert_tapped", "alert_ignored"] as const;
+
+export const userEvents = pgTable("user_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  eventType: text("event_type", { enum: userEventTypeEnum }).notNull(),
+  locationId: uuid("location_id").references(() => locations.id, { onDelete: "set null" }),
+  category: text("category"),
+  alertType: text("alert_type"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// User preferences derived from behavior
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  preferredCategories: jsonb("preferred_categories").default({}).notNull(),
+  ignoredAlertTypes: jsonb("ignored_alert_types").default({}).notNull(),
+  avgShutdownHour: integer("avg_shutdown_hour"),
+  totalStops: integer("total_stops").default(0).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Crowdsourced fullness reports for truck stops
 export const fullnessStatusEnum = ["empty", "moderate", "limited", "full"] as const;
 
@@ -162,3 +187,8 @@ export type Message = typeof messages.$inferSelect;
 
 // Fullness report types
 export type FullnessReport = typeof fullnessReports.$inferSelect;
+
+// User memory types
+export type UserEvent = typeof userEvents.$inferSelect;
+export type InsertUserEvent = typeof userEvents.$inferInsert;
+export type UserPreference = typeof userPreferences.$inferSelect;
