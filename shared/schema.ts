@@ -86,7 +86,7 @@ const baseFormSchema = insertLocationSchema.extend({
 
 export const locationFormSchema = baseFormSchema.extend({
   isSeeded: z.boolean().default(false),
-  superRefine: (data: any, ctx: any) => {
+}).superRefine((data: any, ctx: any) => {
     if (data.facilityKind === "warehouse") {
       if (!data.sopOnArrival) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "SOP is required for warehouses", path: ["sopOnArrival"] });
       if (!data.parkingInstructions) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Parking instructions are required for warehouses", path: ["parkingInstructions"] });
@@ -94,7 +94,6 @@ export const locationFormSchema = baseFormSchema.extend({
       if (!data.lastMileRouteNotes) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Route notes are required for warehouses", path: ["lastMileRouteNotes"] });
       if (!data.gotchas) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gotchas are required for warehouses", path: ["gotchas"] });
     }
-  }
 });
 
 // Since superRefine returns a ZodEffects which doesn't have .partial(), 
