@@ -46,33 +46,26 @@ export default function ChatPage() {
   const queryClient = useQueryClient();
 
   const speak = (text: string, messageId?: number) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.95;
-      utterance.pitch = 1;
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-        if (messageId) setSpeakingMessageId(messageId);
-      };
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        setSpeakingMessageId(null);
-      };
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-        setSpeakingMessageId(null);
-      };
-      window.speechSynthesis.speak(utterance);
-    }
+    import('@/lib/voiceSettings').then(({ speakText }) => {
+      speakText(text, {
+        onStart: () => {
+          setIsSpeaking(true);
+          if (messageId) setSpeakingMessageId(messageId);
+        },
+        onEnd: () => {
+          setIsSpeaking(false);
+          setSpeakingMessageId(null);
+        },
+      });
+    });
   };
 
-  const stopSpeaking = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+  const stopSpeakingHandler = () => {
+    import('@/lib/voiceSettings').then(({ stopSpeaking }) => {
+      stopSpeaking();
       setIsSpeaking(false);
       setSpeakingMessageId(null);
-    }
+    });
   };
 
   const toggleAutoSpeak = () => {
@@ -282,7 +275,7 @@ export default function ChatPage() {
             {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </Button>
           {isSpeaking && (
-            <Button onClick={stopSpeaking} size="sm" variant="destructive" title="Stop speaking">
+            <Button onClick={stopSpeakingHandler} size="sm" variant="destructive" title="Stop speaking">
               <Square className="w-4 h-4" />
             </Button>
           )}
@@ -367,7 +360,7 @@ export default function ChatPage() {
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                       {msg.role === "assistant" && (
                         <button
-                          onClick={() => speakingMessageId === msg.id ? stopSpeaking() : speak(msg.content, msg.id)}
+                          onClick={() => speakingMessageId === msg.id ? stopSpeakingHandler() : speak(msg.content, msg.id)}
                           className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                         >
                           {speakingMessageId === msg.id ? (
