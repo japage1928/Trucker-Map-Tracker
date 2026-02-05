@@ -10,6 +10,7 @@ interface OSMElement {
     name?: string;
     brand?: string;
     amenity?: string;
+    highway?: string;
     opening_hours?: string;
     phone?: string;
     website?: string;

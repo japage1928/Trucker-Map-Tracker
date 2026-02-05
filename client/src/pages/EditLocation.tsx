@@ -34,7 +34,16 @@ export default function EditLocation() {
       </div>
       
       <LocationForm 
-        defaultValues={locationData}
+        defaultValues={{
+          ...locationData,
+          category: locationData.category ?? undefined,
+          notes: locationData.notes ?? undefined,
+          sopOnArrival: locationData.sopOnArrival ?? undefined,
+          parkingInstructions: locationData.parkingInstructions ?? undefined,
+          lastMileRouteNotes: locationData.lastMileRouteNotes ?? undefined,
+          gotchas: locationData.gotchas ?? undefined,
+          dockType: locationData.dockType ?? undefined,
+        }}
         onSubmit={handleSubmit} 
         isSubmitting={mutation.isPending} 
       />

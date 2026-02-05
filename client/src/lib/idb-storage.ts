@@ -41,6 +41,7 @@ export const dbApi = {
     // Map request to full object with defaults
     const newLocation: LocationWithPins = {
       id,
+      userId: null,
       name: data.name,
       address: data.address,
       lat: data.lat || null,
