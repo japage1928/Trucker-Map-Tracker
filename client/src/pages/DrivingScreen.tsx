@@ -38,14 +38,23 @@ function getCategoryConfig(facilityKind: string) {
   return { icon: MapPin, color: '#64748b', label: facilityKind || 'Location' };
 }
 
-const ALL_FILTERS = ['fuel', 'food', 'parking'] as const;
-type FilterType = typeof ALL_FILTERS[number];
+const SEARCH_BUTTONS = ['fuel', 'food', 'parking'] as const;
+type SearchType = typeof SEARCH_BUTTONS[number];
 
-const FILTER_CATEGORIES: Record<FilterType, string[]> = {
+const SEARCH_CATEGORIES: Record<SearchType, string[]> = {
   fuel: ['fuel', 'truck_stop', 'gas'],
   food: ['food', 'restaurant', 'cafe', 'coffee'],
   parking: ['parking', 'rest_area'],
 };
+
+const SEARCH_LABELS: Record<SearchType, string> = {
+  fuel: 'Gas',
+  food: 'Fast Food',
+  parking: 'Parking',
+};
+
+const DEFAULT_RANGE_MILES = 15;
+const EXTENDED_RANGE_MILES = 75;
 
 function TruckIcon() {
   return (
@@ -69,9 +78,8 @@ function TruckIcon() {
 
 export default function DrivingScreen() {
   const { data: locations, isLoading } = useLocations();
-  const [activeFilters, setActiveFilters] = useState<Set<FilterType>>(new Set(ALL_FILTERS));
+  const [activeSearch, setActiveSearch] = useState<SearchType | null>(null);
   const [selectedPOI, setSelectedPOI] = useState<POIResult | null>(null);
-  const [maxDistance] = useState(25);
 
   const { data: userPrefs } = useQuery<UserPreferences>({
     queryKey: ["/api/user-preferences"],
@@ -96,6 +104,8 @@ export default function DrivingScreen() {
       });
     }
   };
+
+  const currentRange = activeSearch ? EXTENDED_RANGE_MILES : DEFAULT_RANGE_MILES;
 
   const stopsAhead = useMemo(() => {
     if (!position || !locations) return [];
@@ -128,35 +138,32 @@ export default function DrivingScreen() {
       },
       pois,
       options: {
-        maxDistanceMiles: maxDistance,
+        maxDistanceMiles: currentRange,
         coneAngleDegrees: position.heading !== null ? 90 : 360,
         maxResults: 50,
       },
     });
 
-    const activeCategories = Array.from(activeFilters).flatMap(
-      filter => FILTER_CATEGORIES[filter]
-    );
+    let filtered = engineResult.poisAhead;
 
-    let filtered = filterPOIsByCategory(engineResult.poisAhead, activeCategories);
+    if (activeSearch) {
+      const searchCategories = SEARCH_CATEGORIES[activeSearch];
+      filtered = filterPOIsByCategory(filtered, searchCategories);
+    }
 
     if (userPrefs?.preferredCategories?.length) {
       filtered = rankPOIsByPreference(filtered, userPrefs.preferredCategories);
     }
 
     return filtered.slice(0, 8);
-  }, [position, locations, maxDistance, activeFilters, userPrefs]);
+  }, [position, locations, currentRange, activeSearch, userPrefs]);
 
-  const toggleFilter = (filter: FilterType) => {
-    setActiveFilters(prev => {
-      const next = new Set(prev);
-      if (next.has(filter)) {
-        next.delete(filter);
-      } else {
-        next.add(filter);
-      }
-      return next;
-    });
+  const handleSearchButton = (searchType: SearchType) => {
+    if (activeSearch === searchType) {
+      setActiveSearch(null);
+    } else {
+      setActiveSearch(searchType);
+    }
   };
 
   if (isLoading) {
@@ -219,28 +226,36 @@ export default function DrivingScreen() {
           />
         </svg>
 
-        <div className="absolute top-3 left-3 right-3 z-20 flex gap-2 justify-center">
-          {ALL_FILTERS.map(filter => {
-            const config = CATEGORY_CONFIG[filter] || { icon: MapPin, color: '#64748b', label: filter };
-            const Icon = config.icon;
-            const isActive = activeFilters.has(filter);
-            return (
-              <Button
-                key={filter}
-                size="sm"
-                onClick={() => toggleFilter(filter)}
-                className="gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-0"
-                style={{ 
-                  backgroundColor: isActive ? config.color : 'rgba(0,0,0,0.5)',
-                  color: 'white',
-                  opacity: isActive ? 1 : 0.7
-                }}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {config.label}
-              </Button>
-            );
-          })}
+        <div className="absolute top-3 left-3 right-3 z-20 flex flex-col items-center gap-2">
+          <div className="flex gap-2 justify-center">
+            {SEARCH_BUTTONS.map(searchType => {
+              const config = CATEGORY_CONFIG[searchType] || { icon: MapPin, color: '#64748b', label: searchType };
+              const Icon = config.icon;
+              const isActive = activeSearch === searchType;
+              return (
+                <Button
+                  key={searchType}
+                  size="sm"
+                  onClick={() => handleSearchButton(searchType)}
+                  className="gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition-all"
+                  style={{ 
+                    backgroundColor: isActive ? config.color : 'rgba(0,0,0,0.6)',
+                    borderColor: isActive ? 'white' : 'transparent',
+                    color: 'white',
+                    boxShadow: isActive ? '0 0 12px rgba(255,255,255,0.4)' : 'none'
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {SEARCH_LABELS[searchType]}
+                </Button>
+              );
+            })}
+          </div>
+          {activeSearch && (
+            <div className="bg-amber-500 text-black px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
+              Searching {EXTENDED_RANGE_MILES} mi ahead for {SEARCH_LABELS[activeSearch]}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -254,7 +269,7 @@ export default function DrivingScreen() {
             const config = getCategoryConfig(poi.category);
             const Icon = config.icon;
             
-            const distanceRatio = Math.min(poi.distanceMiles / maxDistance, 1);
+            const distanceRatio = Math.min(poi.distanceMiles / currentRange, 1);
             
             const verticalPercent = 5 + distanceRatio * 75;
             
