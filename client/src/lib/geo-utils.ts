@@ -84,6 +84,8 @@ export interface POIWithDistance {
   hoursOfOperation?: string;
   notes?: string | null;
   address: string;
+  bearing?: number;
+  relativeBearing?: number;
 }
 
 export interface LocationData {
@@ -130,6 +132,11 @@ export function filterPOIsAhead(
       continue;
     }
 
+    const poiBearing = bearingTo(userLat, userLng, lat, lng);
+    let relativeBearing = poiBearing - effectiveHeading;
+    if (relativeBearing > 180) relativeBearing -= 360;
+    if (relativeBearing < -180) relativeBearing += 360;
+
     results.push({
       id: loc.id,
       name: loc.name,
@@ -140,7 +147,9 @@ export function filterPOIsAhead(
       facilityKind: loc.facilityKind,
       hoursOfOperation: loc.hoursOfOperation,
       notes: loc.notes,
-      address: loc.address
+      address: loc.address,
+      bearing: poiBearing,
+      relativeBearing
     });
   }
 
