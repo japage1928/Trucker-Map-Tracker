@@ -47,10 +47,11 @@ Preferred communication style: Simple, everyday language.
 - **Maps**: Leaflet + React-Leaflet with OpenStreetMap tiles (no API key required)
 
 ### Data Storage Strategy
-- **Primary Storage**: IndexedDB via the `idb` library (`client/src/lib/idb-storage.ts`)
-- **Pattern**: Local-first - all CRUD operations happen against IndexedDB
-- **Hooks**: Custom hooks (`use-locations.ts`) wrap IndexedDB operations with the same interface as API calls, making future backend sync straightforward
+- **Primary Storage**: PostgreSQL database via server API
+- **Pattern**: Server-first - all CRUD operations go through the Express API
+- **Hooks**: Custom hooks (`use-locations.ts`) use TanStack Query to fetch from `/api/locations`
 - **Schema**: Locations with nested pins (entry/exit points with coordinates and labels)
+- **Seeded Data**: 50 real truck stop/rest area locations pre-populated via `server/seed-truck-stops.ts`
 
 ### Backend Structure
 - **Runtime**: Node.js with Express
