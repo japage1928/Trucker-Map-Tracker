@@ -11,6 +11,7 @@ import LocationDetail from "@/pages/LocationDetail";
 import CreateLocation from "@/pages/CreateLocation";
 import EditLocation from "@/pages/EditLocation";
 import MapView from "@/pages/MapView";
+import TrackingView from "@/pages/TrackingView";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 
@@ -19,6 +20,7 @@ function Router() {
     <Switch>
       <ProtectedRoute path="/" component={LocationList} />
       <ProtectedRoute path="/map" component={MapView} />
+      <ProtectedRoute path="/track" component={TrackingView} />
       <ProtectedRoute path="/new" component={CreateLocation} />
       <ProtectedRoute path="/locations/:id" component={LocationDetail} />
       <ProtectedRoute path="/locations/:id/edit" component={EditLocation} />
