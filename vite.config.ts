@@ -23,6 +23,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@core": path.resolve(import.meta.dirname, "core"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
@@ -35,6 +36,7 @@ export default defineConfig({
     fs: {
       strict: true,
       deny: ["**/.*"],
+      allow: [".."],
     },
   },
 });

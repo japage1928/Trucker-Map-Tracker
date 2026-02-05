@@ -1,8 +1,14 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocations } from '@/hooks/use-locations';
 import { useTracking } from '@/hooks/use-tracking';
-import { filterPOIsAhead, type POIWithDistance, type LocationData } from '@/lib/geo-utils';
+import { 
+  processDrivingState, 
+  filterPOIsByCategory,
+  rankPOIsByPreference,
+  type POIInput,
+  type POIResult 
+} from '@core/driving-engine';
 import { logUserEvent, mapFacilityKindToEventType, mapFacilityKindToCategory, getUserPreferences, type UserPreferences } from '@/lib/userMemory';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -35,6 +41,12 @@ function getCategoryConfig(facilityKind: string) {
 const ALL_FILTERS = ['fuel', 'food', 'parking'] as const;
 type FilterType = typeof ALL_FILTERS[number];
 
+const FILTER_CATEGORIES: Record<FilterType, string[]> = {
+  fuel: ['fuel', 'truck_stop', 'gas'],
+  food: ['food', 'restaurant', 'cafe', 'coffee'],
+  parking: ['parking', 'rest_area'],
+};
+
 function TruckIcon() {
   return (
     <svg viewBox="0 0 60 40" className="w-16 h-10">
@@ -58,7 +70,7 @@ function TruckIcon() {
 export default function DrivingScreen() {
   const { data: locations, isLoading } = useLocations();
   const [activeFilters, setActiveFilters] = useState<Set<FilterType>>(new Set(ALL_FILTERS));
-  const [selectedPOI, setSelectedPOI] = useState<POIWithDistance | null>(null);
+  const [selectedPOI, setSelectedPOI] = useState<POIResult | null>(null);
   const [maxDistance] = useState(25);
 
   const { data: userPrefs } = useQuery<UserPreferences>({
@@ -74,13 +86,13 @@ export default function DrivingScreen() {
     minHeadingChange: 5
   });
 
-  const handleSelectPOI = (poi: POIWithDistance) => {
+  const handleSelectPOI = (poi: POIResult) => {
     setSelectedPOI(poi);
-    const eventType = mapFacilityKindToEventType(poi.facilityKind || "");
+    const eventType = mapFacilityKindToEventType(poi.category || "");
     if (eventType) {
       logUserEvent(eventType, {
         locationId: poi.id,
-        category: mapFacilityKindToCategory(poi.facilityKind || ""),
+        category: mapFacilityKindToCategory(poi.category || ""),
       });
     }
   };
@@ -88,49 +100,48 @@ export default function DrivingScreen() {
   const stopsAhead = useMemo(() => {
     if (!position || !locations) return [];
 
-    const locData: LocationData[] = locations.map(loc => ({
-      id: loc.id,
-      name: loc.name,
-      address: loc.address,
-      facilityKind: loc.facilityKind,
-      hoursOfOperation: loc.hoursOfOperation || '',
-      notes: loc.notes,
-      pins: loc.pins.map(p => ({ lat: p.lat, lng: p.lng }))
-    }));
+    const pois: POIInput[] = locations
+      .filter(loc => loc.pins && loc.pins.length > 0)
+      .map(loc => {
+        const pin = loc.pins[0];
+        const lat = parseFloat(pin.lat);
+        const lng = parseFloat(pin.lng);
+        return {
+          id: loc.id,
+          name: loc.name,
+          lat,
+          lng,
+          category: loc.facilityKind,
+          address: loc.address,
+          hoursOfOperation: loc.hoursOfOperation || undefined,
+          notes: loc.notes,
+        };
+      })
+      .filter(poi => !isNaN(poi.lat) && !isNaN(poi.lng));
 
-    const allPOIs = filterPOIsAhead(
-      position.lat,
-      position.lng,
-      position.heading,
-      locData,
-      maxDistance,
-      position.heading !== null ? 90 : 360
-    );
-
-    let filtered = allPOIs.filter(poi => {
-      const kind = poi.facilityKind?.toLowerCase() || '';
-      if (activeFilters.has('fuel') && (kind.includes('fuel') || kind.includes('truck_stop') || kind.includes('gas'))) return true;
-      if (activeFilters.has('food') && (kind.includes('food') || kind.includes('restaurant') || kind.includes('cafe') || kind.includes('coffee'))) return true;
-      if (activeFilters.has('parking') && (kind.includes('parking') || kind.includes('rest_area'))) return true;
-      if (activeFilters.size === ALL_FILTERS.length) return true;
-      return false;
+    const engineResult = processDrivingState({
+      position: {
+        lat: position.lat,
+        lng: position.lng,
+        heading: position.heading,
+        speed: position.speed,
+      },
+      pois,
+      options: {
+        maxDistanceMiles: maxDistance,
+        coneAngleDegrees: position.heading !== null ? 90 : 360,
+        maxResults: 50,
+      },
     });
 
+    const activeCategories = Array.from(activeFilters).flatMap(
+      filter => FILTER_CATEGORIES[filter]
+    );
+
+    let filtered = filterPOIsByCategory(engineResult.poisAhead, activeCategories);
+
     if (userPrefs?.preferredCategories?.length) {
-      filtered = [...filtered].sort((a, b) => {
-        const aKind = a.facilityKind?.toLowerCase() || "";
-        const bKind = b.facilityKind?.toLowerCase() || "";
-        const prefs = userPrefs.preferredCategories;
-        
-        const aIndex = prefs.findIndex(cat => aKind.includes(cat.toLowerCase()));
-        const bIndex = prefs.findIndex(cat => bKind.includes(cat.toLowerCase()));
-        
-        const aScore = aIndex === -1 ? 999 : aIndex;
-        const bScore = bIndex === -1 ? 999 : bIndex;
-        
-        if (aScore !== bScore) return aScore - bScore;
-        return a.distanceMiles - b.distanceMiles;
-      });
+      filtered = rankPOIsByPreference(filtered, userPrefs.preferredCategories);
     }
 
     return filtered.slice(0, 8);
@@ -239,8 +250,8 @@ export default function DrivingScreen() {
         )}
 
         <div className="absolute inset-0 pointer-events-none" style={{ top: `${horizonY}%`, bottom: '18%' }}>
-          {stopsAhead.map((poi, index) => {
-            const config = getCategoryConfig(poi.facilityKind);
+          {stopsAhead.map((poi) => {
+            const config = getCategoryConfig(poi.category);
             const Icon = config.icon;
             
             const distanceRatio = Math.min(poi.distanceMiles / maxDistance, 1);
@@ -312,7 +323,7 @@ export default function DrivingScreen() {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
                   {(() => {
-                    const config = getCategoryConfig(selectedPOI.facilityKind);
+                    const config = getCategoryConfig(selectedPOI.category);
                     const Icon = config.icon;
                     return (
                       <div 
@@ -325,7 +336,7 @@ export default function DrivingScreen() {
                   })()}
                   <div>
                     <h3 className="text-base font-semibold text-white leading-tight">{selectedPOI.name}</h3>
-                    <p className="text-xs text-zinc-400">{getCategoryConfig(selectedPOI.facilityKind).label}</p>
+                    <p className="text-xs text-zinc-400">{getCategoryConfig(selectedPOI.category).label}</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPOI(null)}>
