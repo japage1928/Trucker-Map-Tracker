@@ -41,6 +41,7 @@ Preferred communication style: Simple, everyday language.
 - Uses OpenAI via Replit AI Integrations (no API key required)
 - Trucker-specific personality: casual tone, uses miles, references CDL/HOS rules
 - Voice-to-text input using Web Speech API for hands-free use
+- Voice input auto-sends: when user stops talking, message sends automatically (no need to tap Send)
 - Text-to-speech output: AI responses can be spoken aloud for hands-free driving
 - Auto-speak toggle: automatically reads new AI responses when enabled
 - Listen/Stop buttons on each AI message for manual playback control
@@ -68,9 +69,11 @@ Preferred communication style: Simple, everyday language.
 - Added /track route with continuous GPS tracking
 - Uses device heading/bearing to show "stops ahead" in direction of travel
 - Forward-facing cone filter (90 degrees) excludes POIs behind the truck
+- Falls back to 360-degree view when heading is unavailable (stationary/desktop)
 - Map centers slightly ahead of truck position, not directly on top
 - Stops Ahead panel shows distance, category, and tap-to-center
-- Configurable range: 5, 10, 25, or 50 miles
+- Quick-access buttons: Parking, Fuel, Bathroom - extends search to 50+ miles for that type
+- Configurable range: 5, 10, 25, 50, or 100 miles
 - Throttled GPS updates (every 3 seconds, 50m minimum movement) for performance
 - New files: use-tracking.ts, geo-utils.ts, TrackingView.tsx, TrackingMap.tsx, StopsAheadPanel.tsx
 

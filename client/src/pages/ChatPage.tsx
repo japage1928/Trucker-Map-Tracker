@@ -40,6 +40,9 @@ export default function ChatPage() {
   const [speakingMessageId, setSpeakingMessageId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const pendingVoiceInputRef = useRef<string>("");
+  const shouldAutoSendRef = useRef<boolean>(false);
+  const sendMessageRef = useRef<((msg?: string) => void) | null>(null);
   const queryClient = useQueryClient();
 
   const speak = (text: string, messageId?: number) => {
@@ -88,7 +91,7 @@ export default function ChatPage() {
     }
   }, []);
 
-  // Setup speech recognition
+  // Setup speech recognition with auto-send
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -98,14 +101,35 @@ export default function ChatPage() {
       recognition.lang = "en-US";
 
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join("");
-        setInput(transcript);
+        // Accumulate full transcript from all results
+        let fullTranscript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          fullTranscript += event.results[i][0].transcript;
+        }
+        setInput(fullTranscript);
+        pendingVoiceInputRef.current = fullTranscript;
+        
+        // Check if the last result is final (user stopped speaking)
+        const lastResult = event.results[event.results.length - 1];
+        if (lastResult.isFinal && fullTranscript.trim()) {
+          shouldAutoSendRef.current = true;
+        }
       };
 
       recognition.onend = () => {
         setIsListening(false);
+        // Auto-send if we have pending voice input and got a final result
+        if (shouldAutoSendRef.current && pendingVoiceInputRef.current.trim()) {
+          const messageToSend = pendingVoiceInputRef.current.trim();
+          shouldAutoSendRef.current = false;
+          pendingVoiceInputRef.current = "";
+          // Small delay to ensure state is updated, then send directly
+          setTimeout(() => {
+            if (messageToSend) {
+              sendMessageRef.current?.(messageToSend);
+            }
+          }, 50);
+        }
       };
 
       recognitionRef.current = recognition;
@@ -156,11 +180,13 @@ export default function ChatPage() {
   }, [activeConversation?.messages, streamingContent]);
 
   // Send message with streaming
-  const sendMessage = async () => {
-    if (!input.trim() || !activeConversationId || isStreaming) return;
+  const sendMessage = async (overrideMessage?: string) => {
+    const messageToSend = overrideMessage || input;
+    if (!messageToSend.trim() || !activeConversationId || isStreaming) return;
 
-    const userMessage = input.trim();
+    const userMessage = messageToSend.trim();
     setInput("");
+    pendingVoiceInputRef.current = "";
     setIsStreaming(true);
     setStreamingContent("");
 
@@ -217,6 +243,11 @@ export default function ChatPage() {
       setIsStreaming(false);
     }
   };
+
+  // Keep sendMessage ref updated for voice auto-send
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  });
 
   const toggleVoice = () => {
     if (!recognitionRef.current) return;

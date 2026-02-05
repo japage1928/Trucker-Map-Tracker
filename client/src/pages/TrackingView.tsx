@@ -9,17 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Navigation2, Loader2, AlertCircle, Radio } from 'lucide-react';
 import { filterPOIsAhead, type POIWithDistance, type LocationData } from '@/lib/geo-utils';
 
+import { ParkingCircle, Fuel, Bath } from 'lucide-react';
+
 const DISTANCE_OPTIONS = [
   { value: '5', label: '5 mi' },
   { value: '10', label: '10 mi' },
   { value: '25', label: '25 mi' },
   { value: '50', label: '50 mi' },
+  { value: '100', label: '100 mi' },
 ];
+
+type QuickSearchType = 'all' | 'parking' | 'fuel' | 'bathroom';
 
 export default function TrackingView() {
   const { data: locations, isLoading: locationsLoading } = useLocations();
   const [maxDistance, setMaxDistance] = useState('25');
   const [selectedStop, setSelectedStop] = useState<POIWithDistance | null>(null);
+  const [quickSearch, setQuickSearch] = useState<QuickSearchType>('all');
 
   const { position, error, isTracking } = useTracking({
     enabled: true,
@@ -31,7 +37,28 @@ export default function TrackingView() {
   const stopsAhead = useMemo(() => {
     if (!position || !locations) return [];
 
-    const locData: LocationData[] = locations.map(loc => ({
+    // Filter locations by quick search type
+    let filteredLocations = locations;
+    if (quickSearch === 'parking') {
+      filteredLocations = locations.filter(loc => 
+        loc.facilityKind?.toLowerCase().includes('parking') || 
+        loc.facilityKind?.toLowerCase().includes('rest area') ||
+        loc.facilityKind?.toLowerCase().includes('truck stop')
+      );
+    } else if (quickSearch === 'fuel') {
+      filteredLocations = locations.filter(loc => 
+        loc.facilityKind?.toLowerCase().includes('fuel') || 
+        loc.facilityKind?.toLowerCase().includes('truck stop') ||
+        loc.facilityKind?.toLowerCase().includes('gas')
+      );
+    } else if (quickSearch === 'bathroom') {
+      filteredLocations = locations.filter(loc => 
+        loc.facilityKind?.toLowerCase().includes('rest area') || 
+        loc.facilityKind?.toLowerCase().includes('truck stop')
+      );
+    }
+
+    const locData: LocationData[] = filteredLocations.map(loc => ({
       id: loc.id,
       name: loc.name,
       address: loc.address,
@@ -41,15 +68,18 @@ export default function TrackingView() {
       pins: loc.pins.map(p => ({ lat: p.lat, lng: p.lng }))
     }));
 
+    // Use wider search range when using quick search buttons
+    const effectiveDistance = quickSearch !== 'all' ? Math.max(parseFloat(maxDistance), 50) : parseFloat(maxDistance);
+
     return filterPOIsAhead(
       position.lat,
       position.lng,
       position.heading,
       locData,
-      parseFloat(maxDistance),
-      90
+      effectiveDistance,
+      position.heading !== null ? 90 : 360 // Show all directions if no heading available
     );
-  }, [position, locations, maxDistance]);
+  }, [position, locations, maxDistance, quickSearch]);
 
   const handleStopSelect = useCallback((stop: POIWithDistance) => {
     setSelectedStop(stop);
@@ -77,8 +107,33 @@ export default function TrackingView() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Range:</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={quickSearch === 'parking' ? 'default' : 'outline'}
+              onClick={() => setQuickSearch(quickSearch === 'parking' ? 'all' : 'parking')}
+              title="Find Parking Ahead"
+            >
+              <ParkingCircle className="w-4 h-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={quickSearch === 'fuel' ? 'default' : 'outline'}
+              onClick={() => setQuickSearch(quickSearch === 'fuel' ? 'all' : 'fuel')}
+              title="Find Fuel Ahead"
+            >
+              <Fuel className="w-4 h-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={quickSearch === 'bathroom' ? 'default' : 'outline'}
+              onClick={() => setQuickSearch(quickSearch === 'bathroom' ? 'all' : 'bathroom')}
+              title="Find Bathroom Ahead"
+            >
+              <Bath className="w-4 h-4" />
+            </Button>
+          </div>
           <Select value={maxDistance} onValueChange={setMaxDistance}>
             <SelectTrigger className="w-20 h-8">
               <SelectValue />
