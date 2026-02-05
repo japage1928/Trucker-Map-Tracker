@@ -12,6 +12,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Driving Engine Module (Feb 2026)
+- Created `/core/driving-engine/` module: pure TypeScript logic with no React/UI dependencies
+- Features: `processDrivingState()` API that accepts position/heading/speed/POIs and returns filtered POIs ahead with distances/bearings
+- Files: types.ts (interfaces), geo.ts (distance/bearing math), engine.ts (main logic), index.ts (exports)
+- @core alias configured in tsconfig.json and vite.config.ts for clean imports
+- `client/src/lib/geo-utils.ts` is now a compatibility layer that re-exports from the engine
+- DrivingScreen.tsx refactored to consume the new engine API
+
 ### Voice TTS Note (Feb 2026)
 - Currently using Web Speech API for text-to-speech (browser built-in voices)
 - For more natural voices, set up ElevenLabs integration in the future
