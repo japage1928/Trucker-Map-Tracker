@@ -56,6 +56,21 @@ export const pins = pgTable("pins", {
   instruction: text("instruction").notNull(), // e.g., "Use right lane"
 });
 
+// Chat tables for AI assistant
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  role: text("role").notNull(), // "user" or "assistant"
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // === RELATIONS ===
 export const locationsRelations = relations(locations, ({ many }) => ({
   pins: many(pins),
@@ -128,3 +143,7 @@ export type LocationWithPins = Location & { pins: Pin[] };
 
 export type CreateLocationRequest = z.infer<typeof locationFormSchema>;
 export type UpdateLocationRequest = Partial<CreateLocationRequest>;
+
+// Chat types
+export type Conversation = typeof conversations.$inferSelect;
+export type Message = typeof messages.$inferSelect;
