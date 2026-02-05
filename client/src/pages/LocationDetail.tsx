@@ -53,7 +53,7 @@ export default function LocationDetail() {
     <div className="space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/">
+        <Link href="/list">
           <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/5">
             <ArrowLeft className="w-6 h-6" />
           </Button>

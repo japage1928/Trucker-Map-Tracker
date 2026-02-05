@@ -6,6 +6,7 @@ import { Navigation } from "@/components/Navigation";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 
+import HomePage from "@/pages/HomePage";
 import LocationList from "@/pages/LocationList";
 import LocationDetail from "@/pages/LocationDetail";
 import CreateLocation from "@/pages/CreateLocation";
@@ -13,17 +14,20 @@ import EditLocation from "@/pages/EditLocation";
 import MapView from "@/pages/MapView";
 import TrackingView from "@/pages/TrackingView";
 import ChatPage from "@/pages/ChatPage";
+import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
-      <ProtectedRoute path="/" component={LocationList} />
+      <ProtectedRoute path="/" component={HomePage} />
+      <ProtectedRoute path="/list" component={LocationList} />
       <ProtectedRoute path="/map" component={MapView} />
       <ProtectedRoute path="/track" component={TrackingView} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/new" component={CreateLocation} />
+      <ProtectedRoute path="/settings" component={SettingsPage} />
       <ProtectedRoute path="/locations/:id" component={LocationDetail} />
       <ProtectedRoute path="/locations/:id/edit" component={EditLocation} />
       <Route path="/auth" component={AuthPage} />

@@ -10,14 +10,14 @@ export default function CreateLocation() {
 
   const handleSubmit = (data: any) => {
     mutation.mutate(data, {
-      onSuccess: () => setLocation("/")
+      onSuccess: () => setLocation("/list")
     });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/list")}>
           <ArrowLeft className="w-6 h-6" />
         </Button>
         <div>

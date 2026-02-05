@@ -9,6 +9,54 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+interface WeatherAlert {
+  event: string;
+  headline: string;
+  severity: string;
+  urgency: string;
+  description: string;
+  instruction: string;
+}
+
+async function fetchWeatherAlerts(lat: number, lng: number): Promise<WeatherAlert[]> {
+  try {
+    const response = await fetch(
+      `https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lng.toFixed(4)}`,
+      {
+        headers: {
+          "User-Agent": "TruckerBuddy/1.0 (trucker-app)",
+          Accept: "application/geo+json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Weather API error:", response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    const alerts: WeatherAlert[] = [];
+
+    for (const feature of data.features || []) {
+      const props = feature.properties;
+      alerts.push({
+        event: props.event || "Unknown",
+        headline: props.headline || "",
+        severity: props.severity || "Unknown",
+        urgency: props.urgency || "Unknown",
+        description: props.description || "",
+        instruction: props.instruction || "",
+      });
+    }
+
+    return alerts;
+  } catch (error) {
+    console.error("Failed to fetch weather alerts:", error);
+    return [];
+  }
+}
+
 const TRUCKER_SYSTEM_PROMPT = `You are "Trucker Buddy" - a friendly, helpful AI assistant specifically designed for professional truck drivers (CDL holders). Your personality is casual and supportive, like a fellow trucker who's been on the road for years.
 
 Key traits:
@@ -120,16 +168,41 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
         .where(eq(messages.conversationId, conversationId))
         .orderBy(messages.createdAt);
 
+      // Set up SSE headers early to avoid delays from weather API
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
       const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: TRUCKER_SYSTEM_PROMPT },
       ];
 
-      // Add location context if provided
+      // Add location context and weather alerts if location provided
       if (userLocation) {
         chatMessages.push({
           role: "system",
           content: `The driver's current location is approximately: Latitude ${userLocation.lat.toFixed(4)}, Longitude ${userLocation.lng.toFixed(4)}. Use this to provide location-relevant information when asked about nearby stops, routes, or conditions.`,
         });
+
+        // Fetch weather alerts for the driver's location (with timeout to avoid stalling)
+        try {
+          const weatherAlerts = await Promise.race([
+            fetchWeatherAlerts(userLocation.lat, userLocation.lng),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Weather API timeout")), 3000)),
+          ]).catch(() => [] as WeatherAlert[]);
+
+          if (weatherAlerts.length > 0) {
+            const alertSummary = weatherAlerts
+              .map((a) => `- ${a.event} (${a.severity}): ${a.headline}`)
+              .join("\n");
+            chatMessages.push({
+              role: "system",
+              content: `ACTIVE WEATHER ALERTS for driver's area:\n${alertSummary}\n\nProactively warn the driver about these conditions if relevant to their questions about routes, timing, or safety. For severe weather, recommend safe actions like parking, waiting it out, or alternate routes.`,
+            });
+          }
+        } catch {
+          // Weather API failed, continue without alerts
+        }
       }
 
       // Add conversation history
@@ -139,11 +212,6 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
           content: m.content,
         });
       }
-
-      // Set up SSE
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
 
       // Stream response from OpenAI
       const stream = await openai.chat.completions.create({

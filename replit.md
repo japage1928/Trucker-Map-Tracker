@@ -12,6 +12,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Weather Alerts Integration (Feb 2026)
+- AI chat now fetches real-time weather alerts from Weather.gov API (free, no key needed)
+- Alerts include severe weather, winter storms, high winds, flooding
+- AI proactively warns drivers about hazardous conditions when relevant
+- Location-based: alerts fetched based on user's GPS coordinates
+
+### New Home Screen Dashboard (Feb 2026)
+- Replaced POI list as default home view with icon-based dashboard
+- 5 large square buttons: AI, Map, POIs, Driving, Settings
+- Clean, mobile-friendly grid layout
+- Settings page placeholder added for future configuration options
+- New files: client/src/pages/HomePage.tsx, client/src/pages/SettingsPage.tsx
+
 ### Trucker Buddy AI Chat (Feb 2026)
 - Added /chat route with AI-powered chat assistant
 - Uses OpenAI via Replit AI Integrations (no API key required)
