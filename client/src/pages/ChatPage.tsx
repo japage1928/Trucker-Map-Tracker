@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Mic, MicOff, Trash2, Plus, Bot, User, Loader2 } from "lucide-react";
+import { Send, Mic, MicOff, Trash2, Plus, Bot, User, Loader2, Volume2, VolumeX, Square } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Message {
@@ -28,9 +28,55 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [autoSpeak, setAutoSpeak] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('truckerBuddy_autoSpeak');
+      if (saved === 'true') setAutoSpeak(true);
+    }
+  }, []);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const queryClient = useQueryClient();
+
+  const speak = (text: string, messageId?: number) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        if (messageId) setSpeakingMessageId(messageId);
+      };
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setSpeakingMessageId(null);
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setSpeakingMessageId(null);
+      };
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const stopSpeaking = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+    }
+  };
+
+  const toggleAutoSpeak = () => {
+    const newValue = !autoSpeak;
+    setAutoSpeak(newValue);
+    localStorage.setItem('truckerBuddy_autoSpeak', String(newValue));
+  };
 
   // Get user's location
   useEffect(() => {
@@ -133,6 +179,7 @@ export default function ChatPage() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let accumulatedContent = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -147,12 +194,17 @@ export default function ChatPage() {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
+                accumulatedContent += data.content;
                 setStreamingContent((prev) => prev + data.content);
               }
               if (data.done) {
+                const fullResponse = data.fullContent || accumulatedContent;
                 setIsStreaming(false);
                 setStreamingContent("");
                 queryClient.invalidateQueries({ queryKey: ["/api/trucker-chat/conversations", activeConversationId] });
+                if (autoSpeak && fullResponse) {
+                  setTimeout(() => speak(fullResponse), 100);
+                }
               }
             } catch (e) {
               // Ignore parse errors
@@ -189,7 +241,20 @@ export default function ChatPage() {
           </h1>
           <p className="text-muted-foreground">Your AI co-pilot on the road</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button
+            onClick={toggleAutoSpeak}
+            size="sm"
+            variant={autoSpeak ? "default" : "outline"}
+            title={autoSpeak ? "Auto-speak ON" : "Auto-speak OFF"}
+          >
+            {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </Button>
+          {isSpeaking && (
+            <Button onClick={stopSpeaking} size="sm" variant="destructive" title="Stop speaking">
+              <Square className="w-4 h-4" />
+            </Button>
+          )}
           <Button onClick={() => createConversation.mutate()} size="sm" variant="outline">
             <Plus className="w-4 h-4 mr-1" />
             New Chat
@@ -269,6 +334,22 @@ export default function ChatPage() {
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.role === "assistant" && (
+                        <button
+                          onClick={() => speakingMessageId === msg.id ? stopSpeaking() : speak(msg.content, msg.id)}
+                          className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                        >
+                          {speakingMessageId === msg.id ? (
+                            <>
+                              <Square className="w-3 h-3" /> Stop
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3 h-3" /> Listen
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                     {msg.role === "user" && (
                       <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">

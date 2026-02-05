@@ -41,6 +41,9 @@ Preferred communication style: Simple, everyday language.
 - Uses OpenAI via Replit AI Integrations (no API key required)
 - Trucker-specific personality: casual tone, uses miles, references CDL/HOS rules
 - Voice-to-text input using Web Speech API for hands-free use
+- Text-to-speech output: AI responses can be spoken aloud for hands-free driving
+- Auto-speak toggle: automatically reads new AI responses when enabled
+- Listen/Stop buttons on each AI message for manual playback control
 - Location-aware responses when user grants GPS permission
 - Streaming responses for real-time conversation feel
 - Conversation history stored in PostgreSQL (conversations, messages tables)

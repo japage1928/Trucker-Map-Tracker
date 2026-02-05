@@ -234,7 +234,7 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
       // Save assistant message
       await db.insert(messages).values({ conversationId, role: "assistant", content: fullResponse });
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, fullContent: fullResponse })}\n\n`);
       res.end();
     } catch (error) {
       console.error("Error sending message:", error);
