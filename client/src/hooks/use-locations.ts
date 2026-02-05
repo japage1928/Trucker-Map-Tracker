@@ -1,71 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { dbApi } from "../lib/idb-storage";
 import { type CreateLocationRequest, type UpdateLocationRequest, type LocationWithPins } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
 
-// ============================================
-// LOCAL-FIRST HOOKS — Using IndexedDB (idb)
-// We keep the exact same interface as API hooks
-// to make switching to backend easier later.
-// ============================================
+async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    credentials: 'include',
+  });
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || 'Request failed');
+  }
+  
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
 
 export function useLocations() {
-  const queryClient = useQueryClient();
-
-  // Seeding logic
-  useEffect(() => {
-    const seedData = async () => {
-      const hasSeeded = localStorage.getItem('app_seeded');
-      if (hasSeeded) return;
-
-      try {
-        const response = await fetch('/data/seed-pois.json');
-        const data = await response.json();
-        
-        for (const item of data) {
-          // Convert seed format to internal format if necessary
-          // Note: dbApi.create handles the storage
-          await dbApi.create({
-            ...item,
-            isSeeded: true,
-            locationType: "both", // Default for seeds
-            hoursOfOperation: "24/7",
-            sopOnArrival: "Seeded point of interest",
-            parkingInstructions: "N/A",
-            dockType: "mixed",
-            lastMileRouteNotes: "N/A",
-            gotchas: "N/A",
-            address: "Seeded Location"
-          });
-        }
-        
-        localStorage.setItem('app_seeded', 'true');
-        queryClient.invalidateQueries({ queryKey: ['locations'] });
-      } catch (err) {
-        console.error("Failed to seed data:", err);
-      }
-    };
-
-    seedData();
-  }, [queryClient]);
-
-  return useQuery({
+  return useQuery<LocationWithPins[]>({
     queryKey: ['locations'],
-    queryFn: async () => {
-      return dbApi.getAll();
-    },
+    queryFn: () => apiRequest<LocationWithPins[]>('/api/locations'),
   });
 }
 
 export function useLocation(id: string) {
-  return useQuery({
+  return useQuery<LocationWithPins>({
     queryKey: ['locations', id],
-    queryFn: async () => {
-      const loc = await dbApi.get(id);
-      if (!loc) throw new Error('Location not found');
-      return loc;
-    },
+    queryFn: () => apiRequest<LocationWithPins>(`/api/locations/${id}`),
     enabled: !!id,
   });
 }
@@ -75,12 +41,14 @@ export function useCreateLocation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: CreateLocationRequest) => {
-      return dbApi.create(data);
-    },
+    mutationFn: (data: CreateLocationRequest) => 
+      apiRequest<LocationWithPins>('/api/locations', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
-      toast({ title: "Location Saved", description: "Successfully added to local database." });
+      toast({ title: "Location Saved", description: "Successfully added to database." });
     },
     onError: (err) => {
       toast({ 
@@ -97,9 +65,11 @@ export function useUpdateLocation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & UpdateLocationRequest) => {
-      return dbApi.update(id, updates);
-    },
+    mutationFn: ({ id, ...updates }: { id: string } & UpdateLocationRequest) => 
+      apiRequest<LocationWithPins>(`/api/locations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
       queryClient.invalidateQueries({ queryKey: ['locations', variables.id] });
@@ -120,12 +90,11 @@ export function useDeleteLocation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      return dbApi.delete(id);
-    },
+    mutationFn: (id: string) => 
+      apiRequest<void>(`/api/locations/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
-      toast({ title: "Location Deleted", description: "Removed from local database." });
+      toast({ title: "Location Deleted", description: "Removed from database." });
     },
   });
 }
