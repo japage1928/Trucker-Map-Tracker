@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocations } from '@/hooks/use-locations';
 import { useTracking } from '@/hooks/use-tracking';
 import { filterPOIsAhead, type POIWithDistance, type LocationData } from '@/lib/geo-utils';
+import { logUserEvent, mapFacilityKindToEventType, mapFacilityKindToCategory, getUserPreferences, type UserPreferences } from '@/lib/userMemory';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -59,12 +61,29 @@ export default function DrivingScreen() {
   const [selectedPOI, setSelectedPOI] = useState<POIWithDistance | null>(null);
   const [maxDistance] = useState(25);
 
+  const { data: userPrefs } = useQuery<UserPreferences>({
+    queryKey: ["/api/user-preferences"],
+    queryFn: getUserPreferences,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { position, error, isTracking } = useTracking({
     enabled: true,
     throttleMs: 2000,
     minDistanceMeters: 30,
     minHeadingChange: 5
   });
+
+  const handleSelectPOI = (poi: POIWithDistance) => {
+    setSelectedPOI(poi);
+    const eventType = mapFacilityKindToEventType(poi.facilityKind || "");
+    if (eventType) {
+      logUserEvent(eventType, {
+        locationId: poi.id,
+        category: mapFacilityKindToCategory(poi.facilityKind || ""),
+      });
+    }
+  };
 
   const stopsAhead = useMemo(() => {
     if (!position || !locations) return [];
@@ -88,15 +107,34 @@ export default function DrivingScreen() {
       position.heading !== null ? 90 : 360
     );
 
-    return allPOIs.filter(poi => {
+    let filtered = allPOIs.filter(poi => {
       const kind = poi.facilityKind?.toLowerCase() || '';
       if (activeFilters.has('fuel') && (kind.includes('fuel') || kind.includes('truck_stop') || kind.includes('gas'))) return true;
       if (activeFilters.has('food') && (kind.includes('food') || kind.includes('restaurant') || kind.includes('cafe') || kind.includes('coffee'))) return true;
       if (activeFilters.has('parking') && (kind.includes('parking') || kind.includes('rest_area'))) return true;
       if (activeFilters.size === ALL_FILTERS.length) return true;
       return false;
-    }).slice(0, 8);
-  }, [position, locations, maxDistance, activeFilters]);
+    });
+
+    if (userPrefs?.preferredCategories?.length) {
+      filtered = [...filtered].sort((a, b) => {
+        const aKind = a.facilityKind?.toLowerCase() || "";
+        const bKind = b.facilityKind?.toLowerCase() || "";
+        const prefs = userPrefs.preferredCategories;
+        
+        const aIndex = prefs.findIndex(cat => aKind.includes(cat.toLowerCase()));
+        const bIndex = prefs.findIndex(cat => bKind.includes(cat.toLowerCase()));
+        
+        const aScore = aIndex === -1 ? 999 : aIndex;
+        const bScore = bIndex === -1 ? 999 : bIndex;
+        
+        if (aScore !== bScore) return aScore - bScore;
+        return a.distanceMiles - b.distanceMiles;
+      });
+    }
+
+    return filtered.slice(0, 8);
+  }, [position, locations, maxDistance, activeFilters, userPrefs]);
 
   const toggleFilter = (filter: FilterType) => {
     setActiveFilters(prev => {
@@ -231,7 +269,7 @@ export default function DrivingScreen() {
                   transform: `translate(-50%, -50%) scale(${scale})`,
                   zIndex: Math.round(100 - distanceRatio * 100)
                 }}
-                onClick={() => setSelectedPOI(poi)}
+                onClick={() => handleSelectPOI(poi)}
               >
                 <div 
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md"
