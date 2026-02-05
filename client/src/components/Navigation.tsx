@@ -26,7 +26,7 @@ export function Navigation() {
             <Truck className="w-6 h-6 text-primary" />
           </div>
           <span className="font-display font-bold text-xl tracking-wider text-white">
-            TRUCK<span className="text-primary">OPS</span>
+            TRUCKER<span className="text-primary"> BUDDY</span>
           </span>
         </div>
         

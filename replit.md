@@ -12,6 +12,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### App Rebrand to Trucker Buddy (Feb 2026)
+- Renamed app from "TruckOps" to "Trucker Buddy"
+- Updated navigation sidebar branding
+- Consistent branding across home page and navigation
+
+### Map Status Indicators (Feb 2026)
+- Map pins now show colored dots indicating parking fullness status
+- Colors: green (empty), yellow (moderate), orange (limited), red (full)
+- Fullness summary API fetches status for all locations efficiently
+- Status dots appear on top-right corner of map markers
+
 ### Weather Alerts Integration (Feb 2026)
 - AI chat now fetches real-time weather alerts from Weather.gov API (free, no key needed)
 - Alerts include severe weather, winter storms, high winds, flooding

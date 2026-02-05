@@ -308,4 +308,31 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
       res.status(500).json({ error: "Failed to fetch fullness reports" });
     }
   });
+
+  // Get latest fullness status for ALL locations (for map display)
+  app.get("/api/fullness-summary", async (req: Request, res: Response) => {
+    try {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      // Get all recent reports
+      const recentReports = await db
+        .select()
+        .from(fullnessReports)
+        .where(gte(fullnessReports.createdAt, oneDayAgo))
+        .orderBy(desc(fullnessReports.createdAt));
+
+      // Group by locationId and get the latest status for each
+      const locationStatusMap: Record<string, string> = {};
+      for (const report of recentReports) {
+        if (!locationStatusMap[report.locationId]) {
+          locationStatusMap[report.locationId] = report.status;
+        }
+      }
+
+      res.json(locationStatusMap);
+    } catch (error) {
+      console.error("Error fetching fullness summary:", error);
+      res.status(500).json({ error: "Failed to fetch fullness summary" });
+    }
+  });
 }

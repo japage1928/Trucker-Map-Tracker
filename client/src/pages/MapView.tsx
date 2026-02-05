@@ -1,14 +1,26 @@
 import { useLocations } from "@/hooks/use-locations";
-import { ClusteredMap, LocationInfo } from "@/components/ClusteredMap";
+import { ClusteredMap, LocationInfo, FullnessStatus } from "@/components/ClusteredMap";
 import { LocationDetailPanel } from "@/components/LocationDetailPanel";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Plus, Locate, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function MapView() {
   const { data: locations, isLoading } = useLocations();
+
+  // Fetch fullness summary for all locations
+  const { data: fullnessSummary } = useQuery<Record<string, string>>({
+    queryKey: ["fullness-summary"],
+    queryFn: async () => {
+      const res = await fetch("/api/fullness-summary");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [flyToLocation, setFlyToLocation] = useState<[number, number] | null>(null);
   const [locatingUser, setLocatingUser] = useState(true);
@@ -64,13 +76,15 @@ export default function MapView() {
       type: p.type as "entry" | "exit",
       label: p.label,
       isSeeded: loc.isSeeded,
+      fullnessStatus: (fullnessSummary?.[loc.id] || null) as FullnessStatus,
       locationInfo: {
         name: loc.name,
         address: loc.address,
         facilityKind: loc.facilityKind,
         hoursOfOperation: loc.hoursOfOperation,
         notes: loc.notes,
-        id: loc.id
+        id: loc.id,
+        fullnessStatus: (fullnessSummary?.[loc.id] || null) as FullnessStatus
       }
     }))
   );
