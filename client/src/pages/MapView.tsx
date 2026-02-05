@@ -1,5 +1,5 @@
 import { useLocations } from "@/hooks/use-locations";
-import { LocationMap } from "@/components/LocationMap";
+import { ClusteredMap } from "@/components/ClusteredMap";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -95,8 +95,7 @@ export default function MapView() {
       </div>
 
       <Card className="flex-1 overflow-hidden border-border/50 shadow-lg relative">
-        <LocationMap 
-          interactive={true} 
+        <ClusteredMap 
           center={mapCenter}
           zoom={mapZoom}
           pins={allPins}
@@ -106,12 +105,12 @@ export default function MapView() {
           <h4 className="font-bold text-sm mb-2">Legend</h4>
           <div className="space-y-2 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500 shadow shadow-green-500/50"></div>
-              <span>Entry Points</span>
+              <div className="w-3 h-3 rounded-full bg-blue-500 shadow shadow-blue-500/50"></div>
+              <span>Truck Stops</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500 shadow shadow-red-500/50"></div>
-              <span>Exit Points</span>
+              <div className="w-3 h-3 rounded-full bg-orange-500 shadow shadow-orange-500/50"></div>
+              <span>Clustered (zoom to expand)</span>
             </div>
           </div>
         </div>
