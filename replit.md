@@ -12,6 +12,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Voice TTS Note (Feb 2026)
+- Currently using Web Speech API for text-to-speech (browser built-in voices)
+- For more natural voices, set up ElevenLabs integration in the future
+- OpenAI AI Integrations does NOT support the tts-1 speech API
+- Server endpoint /api/tts was removed (OpenAI approach didn't work)
+
+### Driving Screen Paused (Feb 2026)
+- Driving screen (/drive) and tracking (/track) routes are commented out in App.tsx
+- Code remains in DrivingScreen.tsx and TrackingView.tsx - just hidden from UI
+- To restore: uncomment routes in App.tsx and add buttons back to HomePage.tsx and Navigation.tsx
+
 ### App Rebrand to Trucker Buddy (Feb 2026)
 - Renamed app from "TruckOps" to "Trucker Buddy"
 - Updated navigation sidebar branding
