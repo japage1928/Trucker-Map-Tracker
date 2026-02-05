@@ -1,0 +1,48 @@
+ROLE
+You are acting as a senior software architect refactoring code inside an existing app without degrading its architecture.
+
+CONTEXT
+This project already contains a working app (“Trucker Buddy”).
+The uploaded codebase (“Haulos”) represents a prior, cleaner implementation of driving-related logic.
+
+PRIMARY GOAL
+Create a self-contained Driving Engine module inside this app, derived from Haulos, that can be consumed by the existing Trucker Buddy app without sharing state or logic in both directions.
+
+MANDATORY CONSTRAINTS (DO NOT VIOLATE)
+	•	Create a dedicated folder such as /driving-engine or /core/driving
+	•	Treat this folder as a black box
+	•	NO React components, hooks, UI, routing, or app state inside the engine
+	•	Engine code must be pure logic only (functions, types, helpers)
+	•	All dependencies (location, POIs, heading, speed) must be injected as inputs
+	•	The existing app must adapt to the engine API, not the engine adapting to the app
+	•	Do NOT move engine logic into existing components
+	•	Do NOT introduce globals, side effects, or timers inside the engine
+
+ENGINE CONTRACT
+Define a clear public API that accepts:
+	•	current location
+	•	heading
+	•	speed
+	•	list of POIs
+
+And returns:
+	•	POIs ahead
+	•	distances / ordering
+	•	any derived driving decisions (no UI state)
+
+PROCESS REQUIREMENTS
+	1.	Analyze Haulos and identify logic that belongs in the engine
+	2.	Refactor that logic into the isolated engine folder
+	3.	Leave UI, hooks, and app-specific wiring outside the engine
+	4.	Replace any existing disabled or broken driving logic by calling the engine API
+	5.	If something cannot be cleanly isolated, STOP and explain why instead of forcing integration
+
+SUCCESS CRITERIA
+	•	The app builds and runs
+	•	Driving logic lives in exactly one place
+	•	The engine can theoretically be extracted later with minimal changes
+	•	No duplication of logic between engine and app
+
+IMPORTANT
+Do not optimize for speed or convenience.
+Optimize for correctness, isolation, and long-term maintainability.
