@@ -106,12 +106,17 @@ export default function MapView() {
           pins={allPins}
           className="h-full w-full"
           onMarkerClick={handleMarkerClick}
+          userLocation={userLocation}
         />
         <div className="absolute top-4 right-4 bg-card/90 backdrop-blur p-4 rounded-lg border border-border shadow-xl z-[400] max-w-xs">
           <h4 className="font-bold text-sm mb-2">Legend</h4>
           <div className="space-y-2 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500 shadow shadow-blue-500/50"></div>
+              <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow shadow-blue-500/50"></div>
+              <span>Your Location</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-600 shadow shadow-blue-600/50"></div>
               <span>Truck Stops</span>
             </div>
             <div className="flex items-center gap-2">

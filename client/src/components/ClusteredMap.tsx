@@ -69,6 +69,65 @@ interface ClusteredMapProps {
   pins?: PinData[];
   className?: string;
   onMarkerClick?: (location: LocationInfo) => void;
+  userLocation?: [number, number] | null;
+}
+
+function UserLocationMarker({ position }: { position: [number, number] }) {
+  const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    if (markerRef.current) {
+      map.removeLayer(markerRef.current);
+    }
+
+    const userIcon = L.divIcon({
+      className: 'user-location-marker',
+      html: `
+        <div style="position: relative; width: 20px; height: 20px;">
+          <div style="
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+          "></div>
+          <div style="
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            top: -10px;
+            left: -10px;
+            background: rgba(59, 130, 246, 0.2);
+            border-radius: 50%;
+            animation: pulse-ring 2s ease-out infinite;
+          "></div>
+        </div>
+        <style>
+          @keyframes pulse-ring {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+          }
+        </style>
+      `,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+
+    const marker = L.marker(position, { icon: userIcon, zIndexOffset: 1000 });
+    marker.addTo(map);
+    markerRef.current = marker;
+
+    return () => {
+      if (markerRef.current) {
+        map.removeLayer(markerRef.current);
+      }
+    };
+  }, [map, position]);
+
+  return null;
 }
 
 function MarkerClusterLayer({ pins, onMarkerClick }: { pins: PinData[], onMarkerClick?: (location: LocationInfo) => void }) {
@@ -157,7 +216,8 @@ export function ClusteredMap({
   zoom = 4,
   pins = [],
   className,
-  onMarkerClick
+  onMarkerClick,
+  userLocation
 }: ClusteredMapProps) {
   return (
     <div className={className}>
@@ -175,6 +235,7 @@ export function ClusteredMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MarkerClusterLayer pins={pins} onMarkerClick={onMarkerClick} />
+        {userLocation && <UserLocationMarker position={userLocation} />}
       </MapContainer>
     </div>
   );
