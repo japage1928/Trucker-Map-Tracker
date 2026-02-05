@@ -1,0 +1,41 @@
+Build or add to my existing app a feature called "Trucker Buddy AI" — a conversational AI assistant specifically for truck drivers.
+
+The app is for truckers to get help on the road. The AI should be a chat interface (text input + send button, ideally with voice-to-text using browser Web Speech API for hands-free use).
+
+Key requirements:
+
+1. LLM Integration:
+   - Use an LLM API like Grok (preferred if available via Replit native integrations), Claude, Gemini, or OpenAI.
+   - Make the AI helpful, concise, and trucker-friendly (e.g., casual tone like "Hey driver", use miles instead of km, reference CDL rules, HOS limits, etc.).
+   - Handle common trucker queries such as:
+     - "Find truck stops with parking, showers, and fuel near me"
+     - "What's the best rest area ahead avoiding traffic?"
+     - "How many hours can I drive today?"
+     - "Is this route good for oversize loads?"
+     - "Remind me of Florida scale house rules"
+   - Personalize using user's current location (from browser geolocation API) if permitted.
+   - If the query involves locations/stops, use Google Maps data to enhance answers.
+
+2. Truck Stop Fullness Prediction using Google Maps Traffic Data:
+   - Integrate Google Maps JavaScript API (for map display if needed) + Routes API or Directions API (for traffic info).
+   - For truck stops/rest areas/fuel stations (use a hardcoded list of popular ones or Places API to find nearby):
+     - Query the Google Routes API for traffic conditions on access roads/nearby segments to the stop.
+     - Use real-time traffic speed/flow as a proxy for busyness/fullness:
+       - Fast speeds (>50 mph or free-flow) → "Likely open/empty" (green icon)
+       - Moderate slowdowns → "Moderate traffic/busy" (yellow)
+       - Heavy congestion/slow speeds (<20 mph near entrance/exit) → "Likely full/backed up" (red)
+     - Display this as colored indicators/icons on a map or in AI responses (e.g., "The Pilot at exit 123 looks busy right now—traffic is crawling on the ramp").
+   - Add a simple crowdsourced improvement: Allow users to report "full", "empty", "limited spots" for a stop, store in database, and show aggregated user reports alongside the traffic proxy (e.g., "AI traffic says busy + 3 recent drivers report limited parking").
+   - Poll/refresh traffic data every 5-10 minutes or on user request to keep it real-time-ish.
+
+3. Technical Setup:
+   - Frontend: React or plain HTML/JS for the chat UI (floating chat bubble or dedicated page).
+   - Backend: Node.js/Express or whatever the app uses — handle LLM API calls and Google API requests server-side for security.
+   - Securely store API keys: Use Replit Secrets for GOOGLE_MAPS_API_KEY and LLM key.
+   - Enable required Google APIs: Maps JavaScript API, Routes API, Places API (for finding stops).
+   - Handle errors: Fallback messages like "Couldn't get traffic data right now—try again?" or default to general knowledge.
+   - Make it mobile-responsive/PWA-friendly for truckers on phones.
+
+Start by planning the components (chat UI, API calls, traffic proxy logic), then build step-by-step. Show a working chat demo first where the AI answers a sample query and includes a fullness prediction for a truck stop.
+
+If anything is unclear (e.g., exact truck stop list or voice setup), ask me. Let's make this super useful for over-the-road drivers!
