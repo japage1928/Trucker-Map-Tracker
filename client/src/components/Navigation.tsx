@@ -67,12 +67,12 @@ export function Navigation() {
 
       {/* Mobile Bottom Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border z-50 pb-safe">
-        <div className="flex justify-around items-center h-16">
+        <div className="flex items-center h-16">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} className="flex-1">
               <div 
                 className={cn(
-                  "flex flex-col items-center justify-center w-full h-full gap-1 transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center h-full gap-1 transition-colors cursor-pointer",
                   location === item.href 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-foreground"
@@ -87,7 +87,7 @@ export function Navigation() {
           <button
             onClick={() => logoutMutation.mutate()}
             disabled={logoutMutation.isPending}
-            className="flex flex-col items-center justify-center w-full h-full gap-1 text-muted-foreground hover:text-destructive"
+            className="flex-1 flex flex-col items-center justify-center h-full gap-1 text-muted-foreground hover:text-destructive"
           >
             <LogOut className="w-6 h-6" />
             <span className="text-[10px] font-medium uppercase tracking-wide">Logout</span>

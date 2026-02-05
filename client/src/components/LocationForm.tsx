@@ -269,76 +269,57 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="locationType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {locationTypeEnum.map(t => (
-                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Only show Location Type for warehouses */}
+              {facilityKind === 'warehouse' && (
+                <FormField
+                  control={form.control}
+                  name="locationType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {locationTypeEnum.map(t => (
+                            <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="truck stop">Truck Stop</SelectItem>
-                        <SelectItem value="parking">Parking</SelectItem>
-                        <SelectItem value="scale">Scale</SelectItem>
-                        <SelectItem value="food">Food</SelectItem>
-                        <SelectItem value="rest area">Rest Area</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="dockType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dock Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select dock type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {dockTypeEnum.map(t => (
-                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Only show Dock Type for warehouses */}
+              {facilityKind === 'warehouse' && (
+                <FormField
+                  control={form.control}
+                  name="dockType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dock Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select dock type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {dockTypeEnum.map(t => (
+                            <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

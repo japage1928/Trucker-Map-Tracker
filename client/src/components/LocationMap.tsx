@@ -44,12 +44,22 @@ function MapClickHandler({ onClick }: { onClick: (lat: string, lng: string) => v
   return null;
 }
 
+interface LocationInfo {
+  name: string;
+  address: string;
+  facilityKind: string;
+  hoursOfOperation: string;
+  notes?: string | null;
+  id: string;
+}
+
 interface PinData {
   id?: string;
   type: 'entry' | 'exit';
   lat: string;
   lng: string;
   label: string;
+  locationInfo?: LocationInfo;
 }
 
 interface LocationMapProps {
@@ -124,7 +134,25 @@ export function LocationMap({
             >
               <Popup className="font-sans">
                 {isSeededPin && <div className="text-[10px] text-blue-500 font-bold uppercase mb-1">Official Location</div>}
-                <strong>{pin.type.toUpperCase()}</strong>: {pin.label}
+                {pin.locationInfo ? (
+                  <div className="min-w-[200px]">
+                    <div className="font-bold text-sm mb-1">{pin.locationInfo.name}</div>
+                    <div className="text-xs text-muted-foreground capitalize mb-2">{pin.locationInfo.facilityKind}</div>
+                    <div className="text-xs mb-1">{pin.locationInfo.address}</div>
+                    {pin.locationInfo.hoursOfOperation && (
+                      <div className="text-xs text-muted-foreground mb-1">Hours: {pin.locationInfo.hoursOfOperation}</div>
+                    )}
+                    <div className="text-xs mt-2 pt-2 border-t border-border">
+                      <span className={pin.type === 'entry' ? 'text-green-600' : 'text-red-600'}>
+                        {pin.type.toUpperCase()}
+                      </span>: {pin.label}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <strong>{pin.type.toUpperCase()}</strong>: {pin.label}
+                  </div>
+                )}
               </Popup>
             </Marker>
           );
