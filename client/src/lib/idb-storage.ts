@@ -43,13 +43,19 @@ export const dbApi = {
       id,
       name: data.name,
       address: data.address,
+      facilityKind: data.facilityKind || "warehouse",
       locationType: data.locationType,
+      category: data.category || "general",
+      status: data.status || "approved",
+      visibility: data.visibility || "public",
       hoursOfOperation: data.hoursOfOperation,
-      sopOnArrival: data.sopOnArrival,
-      parkingInstructions: data.parkingInstructions,
-      dockType: data.dockType,
-      lastMileRouteNotes: data.lastMileRouteNotes,
-      gotchas: data.gotchas,
+      sopOnArrival: data.sopOnArrival || null,
+      parkingInstructions: data.parkingInstructions || null,
+      dockType: data.dockType || null,
+      lastMileRouteNotes: data.lastMileRouteNotes || null,
+      gotchas: data.gotchas || null,
+      notes: data.notes || null,
+      isSeeded: data.isSeeded || false,
       lastVerified: now,
       createdAt: now,
       pins: data.pins.map(p => ({
@@ -71,6 +77,12 @@ export const dbApi = {
     const updated: LocationWithPins = {
       ...existing,
       ...data,
+      sopOnArrival: data.sopOnArrival === undefined ? existing.sopOnArrival : (data.sopOnArrival || null),
+      parkingInstructions: data.parkingInstructions === undefined ? existing.parkingInstructions : (data.parkingInstructions || null),
+      dockType: data.dockType === undefined ? existing.dockType : (data.dockType || null),
+      lastMileRouteNotes: data.lastMileRouteNotes === undefined ? existing.lastMileRouteNotes : (data.lastMileRouteNotes || null),
+      gotchas: data.gotchas === undefined ? existing.gotchas : (data.gotchas || null),
+      notes: data.notes === undefined ? existing.notes : (data.notes || null),
       // Handle pins update if provided
       pins: data.pins ? data.pins.map(p => ({
         id: uuidv4(), // Simplified: regnerate IDs for now or would need complex merging logic

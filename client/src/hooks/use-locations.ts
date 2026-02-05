@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { dbApi } from "../lib/idb-storage";
-import { type CreateLocationRequest, type UpdateLocationRequest } from "@shared/schema";
+import { type CreateLocationRequest, type UpdateLocationRequest, type LocationWithPins } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 // ============================================
 // LOCAL-FIRST HOOKS — Using IndexedDB (idb)
@@ -10,11 +11,48 @@ import { useToast } from "@/hooks/use-toast";
 // ============================================
 
 export function useLocations() {
+  const queryClient = useQueryClient();
+
+  // Seeding logic
+  useEffect(() => {
+    const seedData = async () => {
+      const hasSeeded = localStorage.getItem('app_seeded');
+      if (hasSeeded) return;
+
+      try {
+        const response = await fetch('/data/seed-pois.json');
+        const data = await response.json();
+        
+        for (const item of data) {
+          // Convert seed format to internal format if necessary
+          // Note: dbApi.create handles the storage
+          await dbApi.create({
+            ...item,
+            isSeeded: true,
+            locationType: "both", // Default for seeds
+            hoursOfOperation: "24/7",
+            sopOnArrival: "Seeded point of interest",
+            parkingInstructions: "N/A",
+            dockType: "mixed",
+            lastMileRouteNotes: "N/A",
+            gotchas: "N/A",
+            address: "Seeded Location"
+          });
+        }
+        
+        localStorage.setItem('app_seeded', 'true');
+        queryClient.invalidateQueries({ queryKey: ['locations'] });
+      } catch (err) {
+        console.error("Failed to seed data:", err);
+      }
+    };
+
+    seedData();
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['locations'],
     queryFn: async () => {
-      // Simulate network delay for realism
-      // await new Promise(resolve => setTimeout(resolve, 300));
       return dbApi.getAll();
     },
   });

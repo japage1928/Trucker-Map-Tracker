@@ -84,7 +84,8 @@ const baseFormSchema = insertLocationSchema.extend({
   pins: z.array(insertPinSchema.omit({ locationId: true })).default([]),
 });
 
-export const locationFormSchema = Object.assign(baseFormSchema, {
+export const locationFormSchema = baseFormSchema.extend({
+  isSeeded: z.boolean().default(false),
   superRefine: (data: any, ctx: any) => {
     if (data.facilityKind === "warehouse") {
       if (!data.sopOnArrival) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "SOP is required for warehouses", path: ["sopOnArrival"] });

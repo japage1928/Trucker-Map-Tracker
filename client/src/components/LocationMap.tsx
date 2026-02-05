@@ -91,27 +91,44 @@ export function LocationMap({
         
         {interactive && onPinAdd && <MapClickHandler onClick={onPinAdd} />}
 
-        {pins.map((pin, idx) => (
-          <Marker
-            key={pin.id || idx}
-            position={[parseFloat(pin.lat), parseFloat(pin.lng)]}
-            icon={pin.type === 'entry' ? entryIcon : exitIcon}
-            draggable={interactive && !!onPinMove}
-            eventHandlers={{
-              dragend: (e) => {
-                if (onPinMove) {
-                  const marker = e.target;
-                  const position = marker.getLatLng();
-                  onPinMove(idx, position.lat.toString(), position.lng.toString());
+        {pins.map((pin, idx) => {
+          const isSeededPin = (pin as any).isSeeded;
+          const customIcon = isSeededPin 
+            ? new L.Icon({
+                iconUrl: pin.type === 'entry' 
+                  ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png'
+                  : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+              })
+            : (pin.type === 'entry' ? entryIcon : exitIcon);
+
+          return (
+            <Marker
+              key={pin.id || idx}
+              position={[parseFloat(pin.lat), parseFloat(pin.lng)]}
+              icon={customIcon}
+              draggable={!isSeededPin && interactive && !!onPinMove}
+              eventHandlers={{
+                dragend: (e) => {
+                  if (onPinMove && !isSeededPin) {
+                    const marker = e.target;
+                    const position = marker.getLatLng();
+                    onPinMove(idx, position.lat.toString(), position.lng.toString());
+                  }
                 }
-              }
-            }}
-          >
-            <Popup className="font-sans">
-              <strong>{pin.type.toUpperCase()}</strong>: {pin.label}
-            </Popup>
-          </Marker>
-        ))}
+              }}
+            >
+              <Popup className="font-sans">
+                {isSeededPin && <div className="text-[10px] text-blue-500 font-bold uppercase mb-1">Official Location</div>}
+                <strong>{pin.type.toUpperCase()}</strong>: {pin.label}
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );
