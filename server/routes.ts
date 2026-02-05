@@ -6,6 +6,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import { registerTruckerAiRoutes } from "./trucker-ai";
+import { registerTTSRoutes } from "./tts";
 import { logUserEvent, getUserPreferences } from "./userMemory";
 import type { User } from "@shared/schema";
 
@@ -26,6 +27,9 @@ export async function registerRoutes(
   
   // Register Trucker Buddy AI routes
   await registerTruckerAiRoutes(app);
+  
+  // Register TTS routes
+  registerTTSRoutes(app);
   
   // All location routes require authentication
   app.get(api.locations.list.path, requireAuth, async (req, res) => {
