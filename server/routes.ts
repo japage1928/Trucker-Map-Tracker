@@ -1,10 +1,18 @@
 
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth } from "./auth";
+
+// Middleware to require authentication for protected routes
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -13,12 +21,13 @@ export async function registerRoutes(
   // Setup authentication routes: /api/register, /api/login, /api/logout, /api/user
   setupAuth(app);
   
-  app.get(api.locations.list.path, async (req, res) => {
+  // All location routes require authentication
+  app.get(api.locations.list.path, requireAuth, async (req, res) => {
     const locations = await storage.getLocations();
     res.json(locations);
   });
 
-  app.get(api.locations.get.path, async (req, res) => {
+  app.get(api.locations.get.path, requireAuth, async (req, res) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const location = await storage.getLocation(id);
     if (!location) {
@@ -27,7 +36,7 @@ export async function registerRoutes(
     res.json(location);
   });
 
-  app.post(api.locations.create.path, async (req, res) => {
+  app.post(api.locations.create.path, requireAuth, async (req, res) => {
     try {
       const input = api.locations.create.input.parse(req.body);
       const location = await storage.createLocation(input);
@@ -43,7 +52,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.locations.update.path, async (req, res) => {
+  app.put(api.locations.update.path, requireAuth, async (req, res) => {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const input = api.locations.update.input.parse(req.body);
@@ -63,7 +72,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.locations.delete.path, async (req, res) => {
+  app.delete(api.locations.delete.path, requireAuth, async (req, res) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await storage.deleteLocation(id);
     res.status(204).send();

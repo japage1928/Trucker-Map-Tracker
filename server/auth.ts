@@ -33,13 +33,19 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  // Session secret should be set in environment variables for production
+  const sessionSecret = process.env.SESSION_SECRET || "trucker-buddy-dev-secret";
+  
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "trucker-buddy-secret-key-change-in-production",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      httpOnly: true, // Prevents client-side JS from reading cookie
+      sameSite: "lax", // CSRF protection
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
     }
   };
 
@@ -66,27 +72,40 @@ export function setupAuth(app: Express) {
     done(null, user);
   });
 
-  // Register new user
+  // Register new user with input validation
   app.post("/api/register", async (req, res, next) => {
-    const existingUser = await storage.getUserByUsername(req.body.username);
+    const { username, password } = req.body;
+    
+    // Validate input
+    if (!username || typeof username !== "string" || username.length < 3) {
+      return res.status(400).json({ message: "Username must be at least 3 characters" });
+    }
+    if (!password || typeof password !== "string" || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+    
+    const existingUser = await storage.getUserByUsername(username);
     if (existingUser) {
-      return res.status(400).send("Username already exists");
+      return res.status(400).json({ message: "Username already exists" });
     }
 
     const user = await storage.createUser({
-      ...req.body,
-      password: await hashPassword(req.body.password),
+      username,
+      password: await hashPassword(password),
     });
 
     req.login(user, (err) => {
       if (err) return next(err);
-      res.status(201).json(user);
+      // Don't return password hash to client
+      res.status(201).json({ id: user.id, username: user.username, createdAt: user.createdAt });
     });
   });
 
   // Login existing user
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+    // Don't return password hash to client
+    const user = req.user as SelectUser;
+    res.status(200).json({ id: user.id, username: user.username, createdAt: user.createdAt });
   });
 
   // Logout current user
@@ -100,6 +119,8 @@ export function setupAuth(app: Express) {
   // Get current user info
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+    // Don't return password hash to client
+    const user = req.user as SelectUser;
+    res.json({ id: user.id, username: user.username, createdAt: user.createdAt });
   });
 }
