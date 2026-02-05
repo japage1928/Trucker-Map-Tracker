@@ -16,7 +16,7 @@ Preferred communication style: Simple, everyday language.
 - Added marker clustering to map using leaflet.markercluster
 - Nearby pins group into numbered orange clusters that expand on zoom
 - ClusteredMap component (client/src/components/ClusteredMap.tsx) replaces basic map view
-- Expanded seeded data: 620 real US locations (390 truck stops + 230 rest areas)
+- Expanded seeded data: 1,592 real US locations with strong Southeast coverage
 - Data sourced from OpenStreetMap via regional Overpass API queries
 - New file: fetch-osm-truck-stops.ts for fetching additional locations
 
