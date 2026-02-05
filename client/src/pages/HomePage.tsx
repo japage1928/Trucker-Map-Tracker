@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
-import { MessageSquare, Map, List, Navigation, Settings } from "lucide-react";
+import { MessageSquare, Map, List, Settings } from "lucide-react";
 
 interface DashboardButton {
   icon: ReactNode;
@@ -27,12 +27,6 @@ const dashboardButtons: DashboardButton[] = [
     label: "POIs",
     path: "/list",
     color: "bg-green-600 hover:bg-green-500",
-  },
-  {
-    icon: <Navigation className="w-12 h-12" />,
-    label: "Driving",
-    path: "/drive",
-    color: "bg-purple-600 hover:bg-purple-500",
   },
   {
     icon: <Settings className="w-12 h-12" />,

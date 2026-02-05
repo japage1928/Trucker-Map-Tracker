@@ -12,7 +12,6 @@ export function Navigation() {
     { href: "/", icon: Home, label: "Home" },
     { href: "/list", icon: List, label: "List" },
     { href: "/map", icon: Map, label: "Map" },
-    { href: "/track", icon: Navigation2, label: "Track" },
     { href: "/chat", icon: Bot, label: "AI" },
     { href: "/new", icon: PlusCircle, label: "Add" },
   ];
