@@ -1,0 +1,64 @@
+You are continuing work inside the existing “Trucker Buddy” web app.
+You are NOT creating a navigation app.
+You are NOT providing turn-by-turn directions.
+
+You are merging functionality from a previous project into this one.
+DO NOT create a new project or change frameworks.
+DO NOT refactor unrelated code.
+DO NOT replace existing map or POI logic unless necessary.
+
+CORE CONCEPT:
+Truck tracking, not navigation.
+The app passively follows the user’s current GPS location and surfaces relevant stop information ahead of them.
+
+GOAL:
+Extend the app so it continuously tracks the driver’s location and highlights upcoming stops along their current direction of travel.
+
+TRACKING REQUIREMENTS:
+1. Use the device’s GPS to:
+   - Continuously update the user’s current position.
+   - Track heading/bearing and speed (if available).
+2. The map should:
+   - Stay centered slightly ahead of the truck, not directly on top of it.
+   - Update smoothly without animations or route drawing.
+
+STOPS AHEAD LOGIC:
+1. Determine “ahead” based on:
+   - Current heading/bearing.
+   - A configurable forward distance (e.g. 5, 10, 25 miles).
+2. From saved + seeded POIs:
+   - Identify stops that fall within a forward-facing cone or corridor.
+   - Exclude POIs behind the truck.
+3. Display:
+   - Distance to stop.
+   - Category (Fuel, Parking, Rest Area, Scale, Food, etc.).
+   - Notes (if available).
+
+UI REQUIREMENTS:
+- Add a simple “Stops Ahead” panel:
+  - Auto-updates as the truck moves.
+  - Sorted by distance.
+  - Tap a stop to center the map on it.
+- No routes.
+- No directions.
+- No spoken instructions.
+- Minimal text, large touch targets, dark mode compatible.
+
+DATA & PERFORMANCE:
+- Reuse existing POI storage and data models.
+- Do not constantly reprocess all POIs every GPS tick.
+- Throttle updates (reasonable interval for driving).
+- Must work with spotty signal.
+
+MERGE RULES:
+- Integrate previous project logic cleanly into the current structure.
+- If code is reused, clearly comment where it came from and why.
+- If a helper module is needed (e.g. tracking or filtering), keep it small and isolated.
+
+OUTPUT:
+- Modify only necessary files.
+- Provide new helper files only if justified.
+- Brief explanation of:
+  - How “ahead” is calculated.
+  - How often location updates occur.
+  - How performance is protected.
