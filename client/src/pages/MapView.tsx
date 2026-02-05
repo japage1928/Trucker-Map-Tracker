@@ -3,25 +3,14 @@ import { LocationMap } from "@/components/LocationMap";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Plus, Eye, EyeOff } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Plus } from "lucide-react";
 
 export default function MapView() {
   const { data: locations, isLoading } = useLocations();
-  const [showSeeded, setShowSeeded] = useState(() => {
-    const saved = localStorage.getItem('show_seeded');
-    return saved === null ? true : saved === 'true';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('show_seeded', String(showSeeded));
-  }, [showSeeded]);
 
   if (isLoading) return <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
 
-  const filteredLocations = locations?.filter(loc => showSeeded || !loc.isSeeded) || [];
-
-  const allPins = filteredLocations.flatMap(loc => 
+  const allPins = (locations || []).flatMap(loc => 
     loc.pins.map(p => ({
       ...p,
       type: p.type as "entry" | "exit",
@@ -34,22 +23,11 @@ export default function MapView() {
     <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)] flex flex-col gap-4">
       <div className="flex justify-between items-center shrink-0">
         <h1 className="text-2xl font-bold">Global Map</h1>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setShowSeeded(!showSeeded)}
-            className="gap-2"
-          >
-            {showSeeded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            {showSeeded ? "Hide Seeds" : "Show Seeds"}
+        <Link href="/new">
+          <Button size="sm" className="bg-primary text-primary-foreground">
+            <Plus className="w-4 h-4 mr-2" /> Add
           </Button>
-          <Link href="/new">
-            <Button size="sm" className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" /> Add
-            </Button>
-          </Link>
-        </div>
+        </Link>
       </div>
 
       <Card className="flex-1 overflow-hidden border-border/50 shadow-lg relative">
