@@ -12,6 +12,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Marker Clustering & Expanded Data (Feb 2026)
+- Added marker clustering to map using leaflet.markercluster
+- Nearby pins group into numbered orange clusters that expand on zoom
+- ClusteredMap component (client/src/components/ClusteredMap.tsx) replaces basic map view
+- Expanded seeded data: 620 real US locations (390 truck stops + 230 rest areas)
+- Data sourced from OpenStreetMap via regional Overpass API queries
+- New file: fetch-osm-truck-stops.ts for fetching additional locations
+
 ### Live Tracking Feature (Feb 2026)
 - Added /track route with continuous GPS tracking
 - Uses device heading/bearing to show "stops ahead" in direction of travel
