@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -44,7 +44,7 @@ const seededIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-interface LocationInfo {
+export interface LocationInfo {
   name: string;
   address: string;
   facilityKind: string;
@@ -68,13 +68,18 @@ interface ClusteredMapProps {
   zoom?: number;
   pins?: PinData[];
   className?: string;
-  onCenterChange?: (center: [number, number]) => void;
+  onMarkerClick?: (location: LocationInfo) => void;
 }
 
-function MarkerClusterLayer({ pins }: { pins: PinData[] }) {
+function MarkerClusterLayer({ pins, onMarkerClick }: { pins: PinData[], onMarkerClick?: (location: LocationInfo) => void }) {
   const map = useMap();
+  const clusterGroupRef = useRef<any>(null);
 
   useEffect(() => {
+    if (clusterGroupRef.current) {
+      map.removeLayer(clusterGroupRef.current);
+    }
+
     const clusterGroup = (L as any).markerClusterGroup({
       chunkedLoading: true,
       spiderfyOnMaxZoom: true,
@@ -115,6 +120,8 @@ function MarkerClusterLayer({ pins }: { pins: PinData[] }) {
       }
     });
 
+    clusterGroupRef.current = clusterGroup;
+
     pins.forEach((pin) => {
       const lat = parseFloat(pin.lat);
       const lng = parseFloat(pin.lng);
@@ -124,42 +131,24 @@ function MarkerClusterLayer({ pins }: { pins: PinData[] }) {
 
       const marker = L.marker([lat, lng], { icon });
 
-      let popupContent = '';
-      if (pin.locationInfo) {
-        popupContent = `
-          <div style="min-width: 180px; font-family: system-ui, sans-serif;">
-            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${pin.locationInfo.name}</div>
-            <div style="font-size: 12px; color: #666; text-transform: capitalize; margin-bottom: 8px;">${pin.locationInfo.facilityKind}</div>
-            <div style="font-size: 12px; margin-bottom: 4px;">${pin.locationInfo.address}</div>
-            ${pin.locationInfo.hoursOfOperation ? `<div style="font-size: 12px; color: #666;">Hours: ${pin.locationInfo.hoursOfOperation}</div>` : ''}
-          </div>
-        `;
-      } else {
-        popupContent = `<strong>${pin.type.toUpperCase()}</strong>: ${pin.label}`;
+      if (pin.locationInfo && onMarkerClick) {
+        marker.on('click', () => {
+          onMarkerClick(pin.locationInfo!);
+        });
       }
 
-      marker.bindPopup(popupContent);
       clusterGroup.addLayer(marker);
     });
 
     map.addLayer(clusterGroup);
 
     return () => {
-      map.removeLayer(clusterGroup);
-    };
-  }, [map, pins]);
-
-  return null;
-}
-
-function MapClickHandler({ onClick }: { onClick?: (lat: string, lng: string) => void }) {
-  useMapEvents({
-    click(e) {
-      if (onClick) {
-        onClick(e.latlng.lat.toString(), e.latlng.lng.toString());
+      if (clusterGroupRef.current) {
+        map.removeLayer(clusterGroupRef.current);
       }
-    },
-  });
+    };
+  }, [map, pins, onMarkerClick]);
+
   return null;
 }
 
@@ -167,7 +156,8 @@ export function ClusteredMap({
   center = [39.8283, -98.5795],
   zoom = 4,
   pins = [],
-  className
+  className,
+  onMarkerClick
 }: ClusteredMapProps) {
   return (
     <div className={className}>
@@ -184,7 +174,7 @@ export function ClusteredMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MarkerClusterLayer pins={pins} />
+        <MarkerClusterLayer pins={pins} onMarkerClick={onMarkerClick} />
       </MapContainer>
     </div>
   );

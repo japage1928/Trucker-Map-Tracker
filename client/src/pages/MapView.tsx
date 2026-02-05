@@ -1,5 +1,6 @@
 import { useLocations } from "@/hooks/use-locations";
-import { ClusteredMap } from "@/components/ClusteredMap";
+import { ClusteredMap, LocationInfo } from "@/components/ClusteredMap";
+import { LocationDetailPanel } from "@/components/LocationDetailPanel";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -10,8 +11,8 @@ export default function MapView() {
   const { data: locations, isLoading } = useLocations();
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locatingUser, setLocatingUser] = useState(true);
+  const [selectedLocation, setSelectedLocation] = useState<LocationInfo | null>(null);
 
-  // Try to get user's location on mount
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -20,7 +21,6 @@ export default function MapView() {
           setLocatingUser(false);
         },
         () => {
-          // Fallback to US center if geolocation fails
           setLocatingUser(false);
         },
         { enableHighAccuracy: true, timeout: 5000 }
@@ -44,16 +44,22 @@ export default function MapView() {
     );
   };
 
+  const handleMarkerClick = (location: LocationInfo) => {
+    setSelectedLocation(location);
+  };
+
+  const handleClosePanel = () => {
+    setSelectedLocation(null);
+  };
+
   if (isLoading) return <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
 
-  // Build pins with full location info for popup
   const allPins = (locations || []).flatMap(loc => 
     loc.pins.map(p => ({
       ...p,
       type: p.type as "entry" | "exit",
       label: p.label,
       isSeeded: loc.isSeeded,
-      // Include location info for popup display
       locationInfo: {
         name: loc.name,
         address: loc.address,
@@ -65,7 +71,6 @@ export default function MapView() {
     }))
   );
 
-  // Use user location or fall back to US center
   const mapCenter: [number, number] = userLocation || [39.8283, -98.5795];
   const mapZoom = userLocation ? 12 : 4;
 
@@ -100,6 +105,7 @@ export default function MapView() {
           zoom={mapZoom}
           pins={allPins}
           className="h-full w-full"
+          onMarkerClick={handleMarkerClick}
         />
         <div className="absolute top-4 right-4 bg-card/90 backdrop-blur p-4 rounded-lg border border-border shadow-xl z-[400] max-w-xs">
           <h4 className="font-bold text-sm mb-2">Legend</h4>
@@ -114,6 +120,10 @@ export default function MapView() {
             </div>
           </div>
         </div>
+        <LocationDetailPanel 
+          location={selectedLocation} 
+          onClose={handleClosePanel} 
+        />
       </Card>
     </div>
   );
