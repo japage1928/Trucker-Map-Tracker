@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { locations, pins, locationFormSchema } from './schema';
+import { locations, pins, locationFormSchema, updateLocationSchema } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -44,7 +44,7 @@ export const api = {
     update: {
       method: 'PUT' as const,
       path: '/api/locations/:id',
-      input: locationFormSchema.partial(),
+      input: updateLocationSchema,
       responses: {
         200: z.custom<typeof locations.$inferSelect & { pins: typeof pins.$inferSelect[] }>(),
         400: errorSchemas.validation,

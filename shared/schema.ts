@@ -9,7 +9,7 @@ import { z } from "zod";
 export const locationTypeEnum = ["pickup", "delivery", "both"] as const;
 export const dockTypeEnum = ["live", "drop", "mixed"] as const;
 export const pinTypeEnum = ["entry", "exit"] as const;
-
+export const facilityKindEnum = ["warehouse", "truck stop", "rest area", "parking only"] as const;
 export const addressSourceEnum = ["manual", "geocoded"] as const;
 
 export const locations = pgTable("locations", {
@@ -20,15 +20,18 @@ export const locations = pgTable("locations", {
   lng: text("lng"),
   addressSource: text("address_source", { enum: addressSourceEnum }).default("manual"),
   accuracy: integer("accuracy"),
+  facilityKind: text("facility_kind", { enum: facilityKindEnum }).notNull().default("warehouse"),
   locationType: text("location_type", { enum: locationTypeEnum }).notNull(),
   category: text("category").default("general"),
   status: text("status").default("approved"),
+  visibility: text("visibility", { enum: ["public", "private"] }).default("public"),
   hoursOfOperation: text("hours_of_operation").notNull(),
-  sopOnArrival: text("sop_on_arrival").notNull(), // Standard Operating Procedure
-  parkingInstructions: text("parking_instructions").notNull(),
-  dockType: text("dock_type", { enum: dockTypeEnum }).notNull(),
-  lastMileRouteNotes: text("last_mile_route_notes").notNull(),
-  gotchas: text("gotchas").notNull(), // Warnings or issues
+  sopOnArrival: text("sop_on_arrival"), // Optional for non-warehouses
+  parkingInstructions: text("parking_instructions"), // Optional for non-warehouses
+  dockType: text("dock_type", { enum: dockTypeEnum }), // Optional for non-warehouses
+  lastMileRouteNotes: text("last_mile_route_notes"), // Optional for non-warehouses
+  gotchas: text("gotchas"), // Optional for non-warehouses
+  notes: text("notes"),
   lastVerified: timestamp("last_verified").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -61,6 +64,13 @@ export const insertLocationSchema = createInsertSchema(locations).omit({
   id: true, 
   lastVerified: true, 
   createdAt: true 
+}).extend({
+  sopOnArrival: z.string().optional(),
+  parkingInstructions: z.string().optional(),
+  dockType: z.enum(dockTypeEnum).optional(),
+  lastMileRouteNotes: z.string().optional(),
+  gotchas: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const insertPinSchema = createInsertSchema(pins).omit({ 
@@ -68,10 +78,26 @@ export const insertPinSchema = createInsertSchema(pins).omit({
 });
 
 // Composite schema for creating/updating a location WITH its pins
-export const locationFormSchema = insertLocationSchema.extend({
+const baseFormSchema = insertLocationSchema.extend({
   category: z.string().default("truck stop"),
   pins: z.array(insertPinSchema.omit({ locationId: true })).default([]),
 });
+
+export const locationFormSchema = Object.assign(baseFormSchema, {
+  superRefine: (data: any, ctx: any) => {
+    if (data.facilityKind === "warehouse") {
+      if (!data.sopOnArrival) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "SOP is required for warehouses", path: ["sopOnArrival"] });
+      if (!data.parkingInstructions) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Parking instructions are required for warehouses", path: ["parkingInstructions"] });
+      if (!data.dockType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Dock type is required for warehouses", path: ["dockType"] });
+      if (!data.lastMileRouteNotes) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Route notes are required for warehouses", path: ["lastMileRouteNotes"] });
+      if (!data.gotchas) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gotchas are required for warehouses", path: ["gotchas"] });
+    }
+  }
+});
+
+// Since superRefine returns a ZodEffects which doesn't have .partial(), 
+// we'll export a separate partial schema for updates
+export const updateLocationSchema = baseFormSchema.partial();
 
 // === EXPLICIT API TYPES ===
 export type Location = typeof locations.$inferSelect;

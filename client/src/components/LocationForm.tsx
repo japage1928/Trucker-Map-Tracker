@@ -1,6 +1,6 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { locationFormSchema, type CreateLocationRequest, locationTypeEnum, dockTypeEnum } from "@shared/schema";
+import { locationFormSchema, type CreateLocationRequest, locationTypeEnum, dockTypeEnum, facilityKindEnum } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
     defaultValues: defaultValues || {
       name: "",
       address: "",
+      facilityKind: "warehouse",
       locationType: "pickup",
       hoursOfOperation: "",
       sopOnArrival: "",
@@ -36,9 +37,12 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
       lastMileRouteNotes: "",
       gotchas: "",
       pins: [],
-      addressSource: "manual"
+      addressSource: "manual",
+      visibility: "public"
     }
   });
+
+  const facilityKind = form.watch("facilityKind");
 
   const handleUseCurrentLocation = async () => {
     try {
@@ -244,6 +248,29 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
 
               <FormField
                 control={form.control}
+                name="facilityKind"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Facility Kind</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select kind" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {facilityKindEnum.map(k => (
+                          <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="locationType"
                 render={({ field }) => (
                   <FormItem>
@@ -326,85 +353,136 @@ export function LocationForm({ defaultValues, onSubmit, isSubmitting }: Location
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="visibility"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Visibility</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "public"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="public">Public</SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </Card>
 
-          {/* Instructions Column 1 */}
-          <Card className="p-6 space-y-6 border-border/50">
-             <FormField
-                control={form.control}
-                name="sopOnArrival"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>SOP On Arrival</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Check in at guard shack first..." 
-                        className="min-h-[120px]" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {/* Instructions Sections - Conditional for Warehouse */}
+          {facilityKind === 'warehouse' && (
+            <div className="grid gap-6 md:grid-cols-2 md:col-span-2">
+              <Card className="p-6 space-y-6 border-border/50">
+                 <FormField
+                    control={form.control}
+                    name="sopOnArrival"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SOP On Arrival</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Check in at guard shack first..." 
+                            className="min-h-[120px]" 
+                            {...field} 
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="parkingInstructions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parking Instructions</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Overnight parking available in lot B..." 
-                        className="min-h-[120px]" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-          </Card>
+                  <FormField
+                    control={form.control}
+                    name="parkingInstructions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Parking Instructions</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Overnight parking available in lot B..." 
+                            className="min-h-[120px]" 
+                            {...field} 
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </Card>
 
-          {/* Instructions Column 2 */}
-          <Card className="p-6 space-y-6 border-border/50">
-             <FormField
-                control={form.control}
-                name="lastMileRouteNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Mile Route Notes</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Avoid Main St bridge (low clearance)..." 
-                        className="min-h-[120px]" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Card className="p-6 space-y-6 border-border/50">
+                 <FormField
+                    control={form.control}
+                    name="lastMileRouteNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Mile Route Notes</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Avoid Main St bridge (low clearance)..." 
+                            className="min-h-[120px]" 
+                            {...field} 
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="gotchas"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gotchas / Warnings</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Tight turn at entrance..." 
-                        className="min-h-[120px] border-destructive/30 focus:border-destructive" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="gotchas"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gotchas / Warnings</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Tight turn at entrance..." 
+                            className="min-h-[120px] border-destructive/30 focus:border-destructive" 
+                            {...field} 
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </Card>
+            </div>
+          )}
+
+          {/* General Notes for everyone */}
+          <Card className="p-6 space-y-6 md:col-span-2 border-border/50">
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>General Notes</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Any extra information..." 
+                      className="min-h-[100px]" 
+                      {...field} 
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </Card>
         </div>
 
