@@ -1,13 +1,26 @@
 
 import { 
-  locations, pins, 
+  locations, pins, users,
   type Location, type InsertLocation, type Pin, type InsertPin, 
-  type LocationWithPins, type CreateLocationRequest, type UpdateLocationRequest 
+  type LocationWithPins, type CreateLocationRequest, type UpdateLocationRequest,
+  type User, type InsertUser
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
+  // User methods for authentication
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  // Session store for express-session
+  sessionStore: session.Store;
+  // Location methods
   getLocations(): Promise<LocationWithPins[]>;
   getLocation(id: string): Promise<LocationWithPins | undefined>;
   createLocation(data: CreateLocationRequest): Promise<LocationWithPins>;
@@ -16,6 +29,31 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User authentication methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
   async getLocations(): Promise<LocationWithPins[]> {
     const allLocations = await db.select().from(locations);
     const results: LocationWithPins[] = [];

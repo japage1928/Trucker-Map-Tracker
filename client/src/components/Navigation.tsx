@@ -1,9 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Map, List, PlusCircle, Settings, Truck } from "lucide-react";
+import { Map, List, PlusCircle, Settings, Truck, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 
 export function Navigation() {
   const [location] = useLocation();
+  const { user, logoutMutation } = useAuth();
 
   const navItems = [
     { href: "/", icon: List, label: "List" },
@@ -44,10 +47,21 @@ export function Navigation() {
           ))}
         </div>
 
-        <div className="p-4 text-xs text-muted-foreground border-t border-border/50 text-center font-mono">
-          OFFLINE MODE ACTIVE
-          <br />
-          v1.0.0
+        <div className="p-4 border-t border-border/50">
+          {user && (
+            <div className="mb-3 text-sm text-muted-foreground truncate">
+              {user.username}
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+          >
+            <LogOut className="w-4 h-4" />
+            {logoutMutation.isPending ? "Signing out..." : "Sign Out"}
+          </Button>
         </div>
       </nav>
 
@@ -69,6 +83,15 @@ export function Navigation() {
               </div>
             </Link>
           ))}
+          {/* Logout button on mobile */}
+          <button
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            className="flex flex-col items-center justify-center w-full h-full gap-1 text-muted-foreground hover:text-destructive"
+          >
+            <LogOut className="w-6 h-6" />
+            <span className="text-[10px] font-medium uppercase tracking-wide">Logout</span>
+          </button>
         </div>
       </nav>
     </>

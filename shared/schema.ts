@@ -6,6 +6,14 @@ import { z } from "zod";
 
 // === TABLE DEFINITIONS ===
 
+// User table for authentication
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const locationTypeEnum = ["pickup", "delivery", "both"] as const;
 export const dockTypeEnum = ["live", "drop", "mixed"] as const;
 export const pinTypeEnum = ["entry", "exit"] as const;
@@ -14,6 +22,7 @@ export const addressSourceEnum = ["manual", "geocoded"] as const;
 
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id").references(() => users.id),
   name: text("name").notNull(),
   address: text("address").notNull(),
   lat: text("lat"),
@@ -100,7 +109,15 @@ export const locationFormSchema = baseFormSchema.extend({
 // we'll export a separate partial schema for updates
 export const updateLocationSchema = baseFormSchema.partial();
 
+// User schemas
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+});
+
 // === EXPLICIT API TYPES ===
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
 export type Location = typeof locations.$inferSelect;
 export type Pin = typeof pins.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
