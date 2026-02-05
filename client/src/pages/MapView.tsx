@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 export default function MapView() {
   const { data: locations, isLoading } = useLocations();
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [flyToLocation, setFlyToLocation] = useState<[number, number] | null>(null);
   const [locatingUser, setLocatingUser] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState<LocationInfo | null>(null);
 
@@ -17,13 +18,14 @@ export default function MapView() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          const loc: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(loc);
           setLocatingUser(false);
         },
         () => {
           setLocatingUser(false);
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     } else {
       setLocatingUser(false);
@@ -34,13 +36,15 @@ export default function MapView() {
     setLocatingUser(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation([position.coords.latitude, position.coords.longitude]);
+        const loc: [number, number] = [position.coords.latitude, position.coords.longitude];
+        setUserLocation(loc);
+        setFlyToLocation(loc);
         setLocatingUser(false);
       },
       () => {
         setLocatingUser(false);
       },
-      { enableHighAccuracy: true, timeout: 5000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
@@ -107,6 +111,7 @@ export default function MapView() {
           className="h-full w-full"
           onMarkerClick={handleMarkerClick}
           userLocation={userLocation}
+          flyToLocation={flyToLocation}
         />
         <div className="absolute top-4 right-4 bg-card/90 backdrop-blur p-4 rounded-lg border border-border shadow-xl z-[400] max-w-xs">
           <h4 className="font-bold text-sm mb-2">Legend</h4>

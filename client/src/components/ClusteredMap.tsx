@@ -70,6 +70,24 @@ interface ClusteredMapProps {
   className?: string;
   onMarkerClick?: (location: LocationInfo) => void;
   userLocation?: [number, number] | null;
+  flyToLocation?: [number, number] | null;
+}
+
+function MapViewController({ flyTo, zoom }: { flyTo: [number, number] | null, zoom: number }) {
+  const map = useMap();
+  const lastFlyToRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (flyTo) {
+      const key = `${flyTo[0]},${flyTo[1]}`;
+      if (lastFlyToRef.current !== key) {
+        lastFlyToRef.current = key;
+        map.flyTo(flyTo, zoom, { duration: 1 });
+      }
+    }
+  }, [map, flyTo, zoom]);
+
+  return null;
 }
 
 function UserLocationMarker({ position }: { position: [number, number] }) {
@@ -84,20 +102,21 @@ function UserLocationMarker({ position }: { position: [number, number] }) {
     const userIcon = L.divIcon({
       className: 'user-location-marker',
       html: `
-        <div style="position: relative; width: 20px; height: 20px;">
+        <div style="position: relative; width: 24px; height: 24px;">
           <div style="
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             background: #3b82f6;
-            border: 3px solid white;
+            border: 4px solid white;
             border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.6);
+            z-index: 2;
           "></div>
           <div style="
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             top: -10px;
             left: -10px;
             background: rgba(59, 130, 246, 0.2);
@@ -217,7 +236,8 @@ export function ClusteredMap({
   pins = [],
   className,
   onMarkerClick,
-  userLocation
+  userLocation,
+  flyToLocation
 }: ClusteredMapProps) {
   return (
     <div className={className}>
@@ -234,6 +254,7 @@ export function ClusteredMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <MapViewController flyTo={flyToLocation || null} zoom={12} />
         <MarkerClusterLayer pins={pins} onMarkerClick={onMarkerClick} />
         {userLocation && <UserLocationMarker position={userLocation} />}
       </MapContainer>
