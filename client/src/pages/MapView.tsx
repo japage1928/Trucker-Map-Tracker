@@ -135,12 +135,31 @@ export default function MapView() {
               <span>Your Location</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-600 shadow shadow-blue-600/50"></div>
-              <span>Truck Stops</span>
-            </div>
-            <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-500 shadow shadow-orange-500/50"></div>
               <span>Clustered (zoom to expand)</span>
+            </div>
+          </div>
+          <h4 className="font-bold text-sm mt-3 mb-2">Parking Status</h4>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{background: '#22c55e'}}></div>
+              <span>Empty</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{background: '#eab308'}}></div>
+              <span>Moderate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{background: '#f97316'}}></div>
+              <span>Limited</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{background: '#ef4444'}}></div>
+              <span>Full</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{background: '#9ca3af'}}></div>
+              <span>No reports</span>
             </div>
           </div>
         </div>

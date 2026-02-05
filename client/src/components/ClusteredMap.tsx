@@ -61,6 +61,13 @@ const fullnessColors: Record<string, string> = {
   moderate: "#eab308",   // yellow
   limited: "#f97316",    // orange
   full: "#ef4444",       // red
+  unknown: "#9ca3af",    // gray for no reports
+};
+
+const markerUrls = {
+  blue: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  green: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  red: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
 };
 
 interface PinData {
@@ -218,37 +225,32 @@ function MarkerClusterLayer({ pins, onMarkerClick }: { pins: PinData[], onMarker
 
       // Determine fullness status for the colored dot
       const fullness = pin.fullnessStatus || pin.locationInfo?.fullnessStatus;
-      const fullnessColor = fullness ? fullnessColors[fullness] : null;
+      const fullnessColor = fullness ? fullnessColors[fullness] : fullnessColors.unknown;
+      const markerUrl = pin.isSeeded ? markerUrls.blue : (pin.type === 'entry' ? markerUrls.green : markerUrls.red);
 
-      // Create custom icon with optional fullness dot
-      let icon;
-      if (fullnessColor) {
-        // Custom icon with fullness indicator dot
-        icon = L.divIcon({
-          className: 'custom-marker-with-status',
-          html: `
-            <div style="position: relative;">
-              <img src="${pin.isSeeded ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' : (pin.type === 'entry' ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png' : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png')}" style="width: 25px; height: 41px;" />
-              <div style="
-                position: absolute;
-                top: -6px;
-                right: -6px;
-                width: 14px;
-                height: 14px;
-                background: ${fullnessColor};
-                border: 2px solid white;
-                border-radius: 50%;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-              "></div>
-            </div>
-          `,
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-        });
-      } else {
-        icon = pin.isSeeded ? seededIcon : (pin.type === 'entry' ? entryIcon : exitIcon);
-      }
+      // Create custom icon with fullness status dot
+      const icon = L.divIcon({
+        className: 'custom-marker-with-status',
+        html: `
+          <div style="position: relative;">
+            <img src="${markerUrl}" style="width: 25px; height: 41px;" />
+            <div style="
+              position: absolute;
+              top: -6px;
+              right: -6px;
+              width: 14px;
+              height: 14px;
+              background: ${fullnessColor};
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            "></div>
+          </div>
+        `,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+      });
 
       const marker = L.marker([lat, lng], { icon });
 
