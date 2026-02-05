@@ -25,9 +25,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/list" component={LocationList} />
       <ProtectedRoute path="/map" component={MapView} />
-      {/* Hidden for now - Driving features paused */}
-      {/* <ProtectedRoute path="/track" component={TrackingView} /> */}
-      {/* <ProtectedRoute path="/drive" component={DrivingScreen} /> */}
+      <ProtectedRoute path="/drive" component={DrivingScreen} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/new" component={CreateLocation} />
       <ProtectedRoute path="/settings" component={SettingsPage} />

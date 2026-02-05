@@ -1,23 +1,10 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Bell, MapPin, Volume2 } from "lucide-react";
-import { getVoiceGender, setVoiceGender, type VoiceGender, speakText } from "@/lib/voiceSettings";
+import { User, LogOut, Bell, MapPin } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, logoutMutation } = useAuth();
-  const [voiceGender, setVoiceGenderState] = useState<VoiceGender>("female");
-
-  useEffect(() => {
-    setVoiceGenderState(getVoiceGender());
-  }, []);
-
-  const handleVoiceChange = (gender: VoiceGender) => {
-    setVoiceGenderState(gender);
-    setVoiceGender(gender);
-    speakText("This is how I'll sound now, driver.", {});
-  };
 
   return (
     <div className="space-y-6">
@@ -47,33 +34,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Volume2 className="w-5 h-5" />
-            AI Voice
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-gray-400 text-sm">Choose how the AI assistant sounds when speaking</p>
-          <div className="flex gap-3">
-            <Button
-              variant={voiceGender === "female" ? "default" : "outline"}
-              onClick={() => handleVoiceChange("female")}
-              className="flex-1"
-            >
-              Female
-            </Button>
-            <Button
-              variant={voiceGender === "male" ? "default" : "outline"}
-              onClick={() => handleVoiceChange("male")}
-              className="flex-1"
-            >
-              Male
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Voice gender toggle hidden - Web Speech API voices sound similar */}
 
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
