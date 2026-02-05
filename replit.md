@@ -1,14 +1,24 @@
-# Truck Locations PWA
+# Trucker Buddy PWA
 
 ## Overview
 
-A Progressive Web App for semi-truck drivers to manage pickup and delivery location data. The application is designed as a **local-first** system where all data persists in the browser's IndexedDB, enabling full offline functionality. Users can create, view, and edit facility records with detailed trucking-specific information (dock types, parking instructions, hours of operation) and place custom entry/exit pins on interactive maps.
+A Progressive Web App for semi-truck drivers to manage pickup and delivery location data. The application supports both local-first storage (IndexedDB) and server-side persistence with user authentication. Users can create, view, and edit facility records with detailed trucking-specific information (dock types, parking instructions, hours of operation) and place custom entry/exit pins on interactive maps.
 
-The architecture is intentionally simple and focused on correctness - no social features, routing, or complex backend logic. The backend exists primarily to serve the frontend and is structured for future cloud sync capabilities.
+The architecture supports multiple facility types (warehouses, truck stops, rest areas, parking) and includes predefined seeded POIs. User authentication enables private location storage per user.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+### Authentication System (Feb 2026)
+- Added email/password authentication with Passport.js local strategy
+- Users table with id, username, password (hashed), createdAt
+- Locations table now has userId field for ownership
+- Protected routes redirect to /auth when not logged in
+- Session storage in PostgreSQL via connect-pg-simple
+- Logout button in navigation (desktop sidebar and mobile bottom bar)
 
 ## System Architecture
 
@@ -29,8 +39,9 @@ Preferred communication style: Simple, everyday language.
 ### Backend Structure
 - **Runtime**: Node.js with Express
 - **Database ORM**: Drizzle ORM configured for PostgreSQL (schema in `shared/schema.ts`)
-- **Current Role**: Serves static frontend assets; API routes exist but frontend uses local storage
-- **Future Role**: Ready for multi-user sync when DATABASE_URL is provisioned
+- **Authentication**: Passport.js with local strategy (server/auth.ts)
+- **Session Store**: PostgreSQL via connect-pg-simple
+- **Password Hashing**: Node.js crypto (scrypt with salt)
 
 ### Shared Code
 - **Location**: `shared/` directory
