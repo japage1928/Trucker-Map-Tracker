@@ -1,0 +1,22 @@
+[
+  {
+    "id": "seed-1",
+    "name": "I-80 Rest Area (Eastbound)",
+    "lat": "41.1396",
+    "lng": "-100.7592",
+    "category": "rest area",
+    "notes": "Large parking area for trucks. Well lit.",
+    "seeded": true,
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "seed-2",
+    "name": "Big Rig Truck Stop",
+    "lat": "35.1495",
+    "lng": "-90.0490",
+    "category": "truck stop",
+    "notes": "Full service with showers and scales.",
+    "seeded": true,
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+]

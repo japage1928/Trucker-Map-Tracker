@@ -32,6 +32,7 @@ export const locations = pgTable("locations", {
   lastMileRouteNotes: text("last_mile_route_notes"), // Optional for non-warehouses
   gotchas: text("gotchas"), // Optional for non-warehouses
   notes: text("notes"),
+  isSeeded: boolean("is_seeded").default(false).notNull(),
   lastVerified: timestamp("last_verified").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
