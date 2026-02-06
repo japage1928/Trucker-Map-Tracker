@@ -12,6 +12,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Replit Auth Migration (Feb 2026)
+- Replaced username/password auth (Passport.js local strategy) with Replit Auth (OpenID Connect)
+- Users table now uses varchar primary key (OIDC sub claim) instead of serial integer
+- All foreign key references (user_events, user_preferences, fullness_reports, user_purchases) updated to varchar user_id
+- Auth files: server/replit_integrations/auth/ (replitAuth.ts, storage.ts, routes.ts, index.ts)
+- Client auth: client/src/hooks/use-auth.ts (simple hook, no context provider needed)
+- Landing page: client/src/pages/LandingPage.tsx shown to logged-out users
+- Login flow: navigates to /api/login (Replit OIDC), logout via /api/logout
+- Deleted: server/auth.ts, client/src/hooks/use-auth.tsx, client/src/pages/auth-page.tsx
+- User model: id (varchar), email, firstName, lastName, profileImageUrl, createdAt, updatedAt
+- Sessions stored in PostgreSQL sessions table (managed by Replit Auth)
+
 ### Driving Engine Module (Feb 2026)
 - Created `/core/driving-engine/` module: pure TypeScript logic with no React/UI dependencies
 - Features: `processDrivingState()` API that accepts position/heading/speed/POIs and returns filtered POIs ahead with distances/bearings
@@ -131,9 +143,9 @@ Preferred communication style: Simple, everyday language.
 ### Backend Structure
 - **Runtime**: Node.js with Express
 - **Database ORM**: Drizzle ORM configured for PostgreSQL (schema in `shared/schema.ts`)
-- **Authentication**: Passport.js with local strategy (server/auth.ts)
-- **Session Store**: PostgreSQL via connect-pg-simple
-- **Password Hashing**: Node.js crypto (scrypt with salt)
+- **Authentication**: Replit Auth (OpenID Connect) via server/replit_integrations/auth/
+- **Session Store**: PostgreSQL via connect-pg-simple (managed by Replit Auth)
+- **User Model**: id (varchar, OIDC sub claim), email, firstName, lastName, profileImageUrl
 
 ### Shared Code
 - **Location**: `shared/` directory

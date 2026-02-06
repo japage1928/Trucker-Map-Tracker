@@ -1,8 +1,6 @@
-// Protected route component - redirects to /auth if not logged in
-// Reference: javascript_auth_all_persistance integration
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
-import { Redirect, Route } from "wouter";
+import { Route } from "wouter";
 
 export function ProtectedRoute({
   path,
@@ -26,7 +24,10 @@ export function ProtectedRoute({
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/auth" />
+        {() => {
+          window.location.href = "/api/login";
+          return null;
+        }}
       </Route>
     );
   }

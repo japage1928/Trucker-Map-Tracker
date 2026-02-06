@@ -4,15 +4,8 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// === TABLE DEFINITIONS ===
-
-// User table for authentication
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export * from "./models/auth";
+import { users } from "./models/auth";
 
 export const locationTypeEnum = ["pickup", "delivery", "both"] as const;
 export const dockTypeEnum = ["live", "drop", "mixed"] as const;
@@ -22,7 +15,7 @@ export const addressSourceEnum = ["manual", "geocoded"] as const;
 
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: integer("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   name: text("name").notNull(),
   address: text("address").notNull(),
   lat: text("lat"),
@@ -35,11 +28,11 @@ export const locations = pgTable("locations", {
   status: text("status").default("approved"),
   visibility: text("visibility", { enum: ["public", "private"] }).default("public"),
   hoursOfOperation: text("hours_of_operation").notNull(),
-  sopOnArrival: text("sop_on_arrival"), // Optional for non-warehouses
-  parkingInstructions: text("parking_instructions"), // Optional for non-warehouses
-  dockType: text("dock_type", { enum: dockTypeEnum }), // Optional for non-warehouses
-  lastMileRouteNotes: text("last_mile_route_notes"), // Optional for non-warehouses
-  gotchas: text("gotchas"), // Optional for non-warehouses
+  sopOnArrival: text("sop_on_arrival"),
+  parkingInstructions: text("parking_instructions"),
+  dockType: text("dock_type", { enum: dockTypeEnum }),
+  lastMileRouteNotes: text("last_mile_route_notes"),
+  gotchas: text("gotchas"),
   notes: text("notes"),
   isSeeded: boolean("is_seeded").default(false).notNull(),
   lastVerified: timestamp("last_verified").defaultNow().notNull(),
@@ -50,13 +43,12 @@ export const pins = pgTable("pins", {
   id: uuid("id").primaryKey().defaultRandom(),
   locationId: uuid("location_id").notNull().references(() => locations.id, { onDelete: "cascade" }),
   type: text("type", { enum: pinTypeEnum }).notNull(),
-  lat: text("lat").notNull(), // Using text to preserve precision if needed, or doublePrecision if available. Text is safe.
+  lat: text("lat").notNull(),
   lng: text("lng").notNull(),
-  label: text("label").notNull(), // e.g., "Gate A"
-  instruction: text("instruction").notNull(), // e.g., "Use right lane"
+  label: text("label").notNull(),
+  instruction: text("instruction").notNull(),
 });
 
-// Chat tables for AI assistant
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -66,17 +58,16 @@ export const conversations = pgTable("conversations", {
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   conversationId: integer("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
-  role: text("role").notNull(), // "user" or "assistant"
+  role: text("role").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// User behavior events for preference learning
 export const userEventTypeEnum = ["fuel_stop", "parking_stop", "food_stop", "shutdown", "alert_shown", "alert_tapped", "alert_ignored"] as const;
 
 export const userEvents = pgTable("user_events", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   eventType: text("event_type", { enum: userEventTypeEnum }).notNull(),
   locationId: uuid("location_id").references(() => locations.id, { onDelete: "set null" }),
   category: text("category"),
@@ -85,10 +76,9 @@ export const userEvents = pgTable("user_events", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// User preferences derived from behavior
 export const userPreferences = pgTable("user_preferences", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
   preferredCategories: jsonb("preferred_categories").default({}).notNull(),
   ignoredAlertTypes: jsonb("ignored_alert_types").default({}).notNull(),
   avgShutdownHour: integer("avg_shutdown_hour"),
@@ -96,41 +86,37 @@ export const userPreferences = pgTable("user_preferences", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Crowdsourced fullness reports for truck stops
 export const fullnessStatusEnum = ["empty", "moderate", "limited", "full"] as const;
 
 export const fullnessReports = pgTable("fullness_reports", {
   id: serial("id").primaryKey(),
   locationId: uuid("location_id").notNull().references(() => locations.id, { onDelete: "cascade" }),
-  userId: integer("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   status: text("status", { enum: fullnessStatusEnum }).notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// One-time purchases for paid features
 export const purchaseTypeEnum = ["parkingInsights"] as const;
 
 export const userPurchases = pgTable("user_purchases", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   purchaseType: text("purchase_type", { enum: purchaseTypeEnum }).notNull(),
   purchasedAt: timestamp("purchased_at").defaultNow().notNull(),
 });
 
-// Aggregate parking likelihood pings (no PII)
 export const dayTypeEnum = ["weekday", "weekend"] as const;
 
 export const parkingPings = pgTable("parking_pings", {
   id: serial("id").primaryKey(),
-  stopId: text("stop_id").notNull(), // locationId or external ID
-  hour: integer("hour").notNull(), // 0-23
+  stopId: text("stop_id").notNull(),
+  hour: integer("hour").notNull(),
   dayType: text("day_type", { enum: dayTypeEnum }).notNull(),
   pingCount: integer("ping_count").default(1).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// === RELATIONS ===
 export const locationsRelations = relations(locations, ({ many }) => ({
   pins: many(pins),
 }));
@@ -142,8 +128,6 @@ export const pinsRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
-// === ZOD SCHEMAS ===
-// Base schemas
 export const insertLocationSchema = createInsertSchema(locations).omit({ 
   id: true, 
   lastVerified: true, 
@@ -161,7 +145,6 @@ export const insertPinSchema = createInsertSchema(pins).omit({
   id: true 
 });
 
-// Composite schema for creating/updating a location WITH its pins
 const baseFormSchema = insertLocationSchema.extend({
   category: z.string().default("truck stop"),
   pins: z.array(insertPinSchema.omit({ locationId: true })).default([]),
@@ -179,45 +162,28 @@ export const locationFormSchema = baseFormSchema.extend({
     }
 });
 
-// Since superRefine returns a ZodEffects which doesn't have .partial(), 
-// we'll export a separate partial schema for updates
 export const updateLocationSchema = baseFormSchema.partial();
 
-// User schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-// === EXPLICIT API TYPES ===
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
 export type Location = typeof locations.$inferSelect;
 export type Pin = typeof pins.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
 export type InsertPin = z.infer<typeof insertPinSchema>;
 
-// The frontend will likely use a "Location with Pins" object
 export type LocationWithPins = Location & { pins: Pin[] };
 
 export type CreateLocationRequest = z.infer<typeof locationFormSchema>;
 export type UpdateLocationRequest = Partial<CreateLocationRequest>;
 
-// Chat types
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 
-// Fullness report types
 export type FullnessReport = typeof fullnessReports.$inferSelect;
 
-// User memory types
 export type UserEvent = typeof userEvents.$inferSelect;
 export type InsertUserEvent = typeof userEvents.$inferInsert;
 export type UserPreference = typeof userPreferences.$inferSelect;
 
-// Purchase types
 export type UserPurchase = typeof userPurchases.$inferSelect;
 export type InsertUserPurchase = typeof userPurchases.$inferInsert;
 
-// Parking ping types
 export type ParkingPing = typeof parkingPings.$inferSelect;

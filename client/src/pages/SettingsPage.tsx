@@ -6,7 +6,11 @@ import { Link } from "wouter";
 import { HOSTracker } from "@/components/HOSTracker";
 
 export default function SettingsPage() {
-  const { user, logoutMutation } = useAuth();
+  const { user } = useAuth();
+
+  const displayName = user?.firstName
+    ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+    : user?.email || "Driver";
 
   return (
     <div className="space-y-6">
@@ -20,23 +24,32 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <p className="text-gray-400 text-sm">Logged in as</p>
-            <p className="text-lg font-medium">{user?.username || "Unknown"}</p>
+          <div className="flex items-center gap-3">
+            {user?.profileImageUrl && (
+              <img
+                src={user.profileImageUrl}
+                alt=""
+                className="w-12 h-12 rounded-full"
+              />
+            )}
+            <div>
+              <p className="text-lg font-medium">{displayName}</p>
+              {user?.email && (
+                <p className="text-gray-400 text-sm">{user.email}</p>
+              )}
+            </div>
           </div>
-          <Button
-            variant="destructive"
-            onClick={() => logoutMutation.mutate()}
-            disabled={logoutMutation.isPending}
-            className="w-full"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            {logoutMutation.isPending ? "Logging out..." : "Logout"}
-          </Button>
+          <a href="/api/logout" className="block">
+            <Button
+              variant="destructive"
+              className="w-full"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </a>
         </CardContent>
       </Card>
-
-      {/* Voice gender toggle hidden - Web Speech API voices sound similar */}
 
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
@@ -62,7 +75,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* HOS Tracking */}
       <HOSTracker />
 
       <Card className="bg-gray-800 border-gray-700">

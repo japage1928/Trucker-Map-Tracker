@@ -4,36 +4,29 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { setupAuth } from "./auth";
+import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import { registerTruckerAiRoutes } from "./trucker-ai";
 import { logUserEvent, getUserPreferences } from "./userMemory";
-import type { User } from "@shared/schema";
 
-// Middleware to require authentication for protected routes
-function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  next();
+function getUserId(req: Request): string {
+  return (req.user as any)?.claims?.sub;
 }
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup authentication routes: /api/register, /api/login, /api/logout, /api/user
-  setupAuth(app);
+  await setupAuth(app);
+  registerAuthRoutes(app);
   
-  // Register Trucker Buddy AI routes
   await registerTruckerAiRoutes(app);
   
-  // All location routes require authentication
-  app.get(api.locations.list.path, requireAuth, async (req, res) => {
+  app.get(api.locations.list.path, isAuthenticated, async (req, res) => {
     const locations = await storage.getLocations();
     res.json(locations);
   });
 
-  app.get(api.locations.get.path, requireAuth, async (req, res) => {
+  app.get(api.locations.get.path, isAuthenticated, async (req, res) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const location = await storage.getLocation(id);
     if (!location) {
@@ -42,13 +35,13 @@ export async function registerRoutes(
     res.json(location);
   });
 
-  app.post(api.locations.create.path, requireAuth, async (req, res) => {
+  app.post(api.locations.create.path, isAuthenticated, async (req, res) => {
     return res.status(403).json({
       message: "Creating new facilities is disabled.",
     });
   });
 
-  app.put(api.locations.update.path, requireAuth, async (req, res) => {
+  app.put(api.locations.update.path, isAuthenticated, async (req, res) => {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const input = api.locations.update.input.parse(req.body);
@@ -68,18 +61,18 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.locations.delete.path, requireAuth, async (req, res) => {
+  app.delete(api.locations.delete.path, isAuthenticated, async (req, res) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await storage.deleteLocation(id);
     res.status(204).send();
   });
 
-  app.post("/api/user-events", requireAuth, async (req, res) => {
+  app.post("/api/user-events", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as User;
+      const userId = getUserId(req);
       const { eventType, locationId, category, alertType, metadata } = req.body;
       
-      await logUserEvent(user.id, eventType, {
+      await logUserEvent(userId, eventType, {
         locationId,
         category,
         alertType,
@@ -93,10 +86,10 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/user-preferences", requireAuth, async (req, res) => {
+  app.get("/api/user-preferences", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as User;
-      const preferences = await getUserPreferences(user.id);
+      const userId = getUserId(req);
+      const preferences = await getUserPreferences(userId);
       res.json(preferences);
     } catch (error) {
       console.error("Failed to get user preferences:", error);
@@ -104,11 +97,10 @@ export async function registerRoutes(
     }
   });
 
-  // Parking Insights Purchase Endpoints
-  app.get("/api/purchases/parkingInsights", requireAuth, async (req, res) => {
+  app.get("/api/purchases/parkingInsights", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as User;
-      const purchase = await storage.getPurchase(user.id, "parkingInsights");
+      const userId = getUserId(req);
+      const purchase = await storage.getPurchase(userId, "parkingInsights");
       res.json({
         hasPurchase: !!purchase,
         purchasedAt: purchase?.purchasedAt,
@@ -119,12 +111,11 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/purchases/parkingInsights", requireAuth, async (req, res) => {
+  app.post("/api/purchases/parkingInsights", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as User;
+      const userId = getUserId(req);
       
-      // Check if already purchased
-      const existing = await storage.getPurchase(user.id, "parkingInsights");
+      const existing = await storage.getPurchase(userId, "parkingInsights");
       if (existing) {
         return res.json({
           hasPurchase: true,
@@ -132,9 +123,7 @@ export async function registerRoutes(
         });
       }
 
-      // In production, this is where you'd integrate with Stripe/Apple Pay/Google Pay
-      // For now, we'll create the purchase record directly
-      const purchase = await storage.createPurchase(user.id, "parkingInsights");
+      const purchase = await storage.createPurchase(userId, "parkingInsights");
       
       res.status(201).json({
         hasPurchase: true,
@@ -146,7 +135,6 @@ export async function registerRoutes(
     }
   });
 
-  // Parking Ping Logging (anonymous aggregate data)
   app.post("/api/parking-pings", async (req, res) => {
     try {
       const { stopId, hour, dayType } = req.body;
@@ -155,12 +143,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid ping data" });
       }
 
-      // Fire-and-forget logging
       storage.logParkingPing(stopId, hour, dayType).catch(err => {
         console.error("Failed to log parking ping:", err);
       });
 
-      // Return immediately (non-blocking)
       res.status(202).json({ success: true });
     } catch (error) {
       console.error("Parking ping endpoint error:", error);
