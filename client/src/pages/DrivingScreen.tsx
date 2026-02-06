@@ -10,17 +10,18 @@ import {
   type POIResult 
 } from '@core/driving-engine';
 import { logUserEvent, mapFacilityKindToEventType, mapFacilityKindToCategory, getUserPreferences, type UserPreferences } from '@/lib/userMemory';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
   Loader2, Navigation2, Fuel, Coffee, ParkingCircle, 
-  UtensilsCrossed, X, MapPin, Clock, FileText, Compass
+  UtensilsCrossed, X, MapPin, Clock, FileText
 } from 'lucide-react';
 
 const CATEGORY_CONFIG: Record<string, { icon: typeof Fuel; color: string; label: string }> = {
   fuel: { icon: Fuel, color: '#dc2626', label: 'Gas' },
   truck_stop: { icon: Fuel, color: '#dc2626', label: 'Truck Stop' },
   gas: { icon: Fuel, color: '#dc2626', label: 'Gas' },
-  food: { icon: UtensilsCrossed, color: '#eab308', label: 'Food' },
+  food: { icon: UtensilsCrossed, color: '#eab308', label: 'Fast Food' },
   restaurant: { icon: UtensilsCrossed, color: '#eab308', label: 'Restaurant' },
   cafe: { icon: Coffee, color: '#16a34a', label: 'Cafe' },
   coffee: { icon: Coffee, color: '#16a34a', label: 'Coffee' },
@@ -46,20 +47,33 @@ const SEARCH_CATEGORIES: Record<SearchType, string[]> = {
   parking: ['parking', 'rest_area'],
 };
 
+const SEARCH_LABELS: Record<SearchType, string> = {
+  fuel: 'Gas',
+  food: 'Fast Food',
+  parking: 'Parking',
+};
+
 const DEFAULT_RANGE_MILES = 15;
 const EXTENDED_RANGE_MILES = 75;
 
-function getBearingDirection(bearing: number | undefined): string {
-  if (bearing === undefined) return '';
-  const normalized = ((bearing % 360) + 360) % 360;
-  if (normalized < 22.5 || normalized >= 337.5) return 'ahead';
-  if (normalized < 67.5) return 'ahead right';
-  if (normalized < 112.5) return 'right';
-  if (normalized < 157.5) return 'behind right';
-  if (normalized < 202.5) return 'behind';
-  if (normalized < 247.5) return 'behind left';
-  if (normalized < 292.5) return 'left';
-  return 'ahead left';
+function TruckIcon() {
+  return (
+    <svg viewBox="0 0 60 40" className="w-16 h-10">
+      <defs>
+        <linearGradient id="truckGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#3b82f6" />
+          <stop offset="100%" stopColor="#1d4ed8" />
+        </linearGradient>
+      </defs>
+      <rect x="5" y="12" width="50" height="22" rx="2" fill="url(#truckGrad)" />
+      <rect x="12" y="5" width="36" height="10" rx="4" fill="#60a5fa" />
+      <rect x="18" y="7" width="24" height="6" rx="1" fill="#bfdbfe" />
+      <ellipse cx="15" cy="36" rx="5" ry="4" fill="#1f2937" />
+      <ellipse cx="45" cy="36" rx="5" ry="4" fill="#1f2937" />
+      <rect x="6" y="20" width="4" height="3" rx="1" fill="#fbbf24" />
+      <rect x="50" y="20" width="4" height="3" rx="1" fill="#fbbf24" />
+    </svg>
+  );
 }
 
 export default function DrivingScreen() {
@@ -141,7 +155,7 @@ export default function DrivingScreen() {
       filtered = rankPOIsByPreference(filtered, userPrefs.preferredCategories);
     }
 
-    return filtered.slice(0, 10);
+    return filtered.slice(0, 8);
   }, [position, locations, currentRange, activeSearch, userPrefs]);
 
   const handleSearchButton = (searchType: SearchType) => {
@@ -154,186 +168,223 @@ export default function DrivingScreen() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-zinc-950">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+      <div className="flex justify-center items-center h-screen bg-slate-900">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
-  const speed = position?.speed ? Math.round(position.speed * 2.237) : null;
+  const horizonY = 25;
+  const roadBottom = 100;
 
   return (
-    <div className="fixed inset-0 bg-zinc-950 flex flex-col select-none">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${isTracking ? 'bg-green-500' : error ? 'bg-red-500' : 'bg-zinc-600'}`} />
-          <span className="text-zinc-400 text-sm font-medium">
-            {speed !== null ? `${speed} mph` : 'GPS'}
-          </span>
-        </div>
+    <div className="fixed inset-0 overflow-hidden select-none">
+      <div className="absolute inset-0">
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(180deg, 
+              #87ceeb 0%, 
+              #87ceeb ${horizonY}%, 
+              #4ade80 ${horizonY}%, 
+              #22c55e 100%)`
+          }}
+        />
         
-        <div className="flex items-center gap-1 bg-zinc-900 rounded-full p-1">
-          {SEARCH_BUTTONS.map(searchType => {
-            const config = CATEGORY_CONFIG[searchType];
-            const Icon = config.icon;
-            const isActive = activeSearch === searchType;
-            return (
-              <button
-                key={searchType}
-                onClick={() => handleSearchButton(searchType)}
-                className={`p-2.5 rounded-full transition-all ${
-                  isActive 
-                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30' 
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                }`}
-                title={config.label}
-              >
-                <Icon className="w-5 h-5" />
-              </button>
-            );
-          })}
-        </div>
+        <svg 
+          className="absolute inset-0 w-full h-full" 
+          viewBox="0 0 100 100" 
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="roadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#52525b" />
+              <stop offset="100%" stopColor="#27272a" />
+            </linearGradient>
+          </defs>
+          
+          <polygon 
+            points={`50,${horizonY} 15,${roadBottom} 85,${roadBottom}`} 
+            fill="url(#roadGrad)" 
+          />
+          
+          <line x1="50" y1={horizonY + 3} x2="50" y2={horizonY + 8} stroke="#fbbf24" strokeWidth="0.4" />
+          <line x1="50" y1={horizonY + 12} x2="50" y2={horizonY + 20} stroke="#fbbf24" strokeWidth="0.5" />
+          <line x1="50" y1={horizonY + 25} x2="50" y2={horizonY + 38} stroke="#fbbf24" strokeWidth="0.7" />
+          <line x1="50" y1={horizonY + 44} x2="50" y2={horizonY + 60} stroke="#fbbf24" strokeWidth="1" />
+          <line x1="50" y1={horizonY + 66} x2="50" y2={roadBottom} stroke="#fbbf24" strokeWidth="1.2" />
+          
+          <line 
+            x1="50" y1={horizonY} 
+            x2="15" y2={roadBottom} 
+            stroke="white" strokeWidth="0.8" 
+          />
+          <line 
+            x1="50" y1={horizonY} 
+            x2="85" y2={roadBottom} 
+            stroke="white" strokeWidth="0.8" 
+          />
+        </svg>
 
-        <div className="flex items-center gap-2 text-zinc-500 text-sm">
-          <Compass className="w-4 h-4" />
-          <span>{currentRange} mi</span>
-        </div>
-      </div>
-
-      {activeSearch && (
-        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
-          <p className="text-amber-500 text-xs text-center font-medium">
-            Searching {EXTENDED_RANGE_MILES} mi for {CATEGORY_CONFIG[activeSearch].label}
-          </p>
-        </div>
-      )}
-
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-        {stopsAhead.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-zinc-500">
-            <Navigation2 className="w-12 h-12 mb-3 opacity-30" />
-            <p className="text-sm">No stops ahead</p>
-            <p className="text-xs mt-1">
-              {position ? `Within ${currentRange} miles` : 'Waiting for GPS...'}
-            </p>
+        <div className="absolute top-3 left-3 right-3 z-20 flex flex-col items-center gap-2">
+          <div className="flex gap-2 justify-center">
+            {SEARCH_BUTTONS.map(searchType => {
+              const config = CATEGORY_CONFIG[searchType] || { icon: MapPin, color: '#64748b', label: searchType };
+              const Icon = config.icon;
+              const isActive = activeSearch === searchType;
+              return (
+                <Button
+                  key={searchType}
+                  size="sm"
+                  onClick={() => handleSearchButton(searchType)}
+                  className="gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition-all"
+                  style={{ 
+                    backgroundColor: isActive ? config.color : 'rgba(0,0,0,0.6)',
+                    borderColor: isActive ? 'white' : 'transparent',
+                    color: 'white',
+                    boxShadow: isActive ? '0 0 12px rgba(255,255,255,0.4)' : 'none'
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {SEARCH_LABELS[searchType]}
+                </Button>
+              );
+            })}
           </div>
-        ) : (
-          stopsAhead.map((poi, index) => {
+          {activeSearch && (
+            <div className="bg-amber-500 text-black px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
+              Searching {EXTENDED_RANGE_MILES} mi ahead for {SEARCH_LABELS[activeSearch]}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="absolute top-14 left-4 right-4 z-20 bg-red-600 text-white px-3 py-2 rounded text-xs text-center">
+            GPS: {error}
+          </div>
+        )}
+
+        <div className="absolute inset-0 pointer-events-none" style={{ top: `${horizonY}%`, bottom: '18%' }}>
+          {stopsAhead.map((poi) => {
             const config = getCategoryConfig(poi.category);
             const Icon = config.icon;
-            const direction = getBearingDirection(poi.relativeBearing);
+            
+            const distanceRatio = Math.min(poi.distanceMiles / currentRange, 1);
+            
+            const verticalPercent = 5 + distanceRatio * 75;
+            
+            const scale = 1.1 - distanceRatio * 0.6;
+            
+            const bearing = poi.relativeBearing || 0;
+            const isLeft = bearing < 0;
+            
+            const roadWidthAtY = 35 - distanceRatio * 30;
+            const offsetFromCenter = roadWidthAtY * 0.6 + Math.abs(bearing) * 0.15;
+            
+            const horizontalPos = isLeft 
+              ? 50 - offsetFromCenter 
+              : 50 + offsetFromCenter;
             
             return (
               <div
                 key={poi.id}
+                className="absolute pointer-events-auto cursor-pointer transition-all duration-500 ease-out"
+                style={{
+                  top: `${verticalPercent}%`,
+                  left: `${horizontalPos}%`,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
+                  zIndex: Math.round(100 - distanceRatio * 100)
+                }}
                 onClick={() => handleSelectPOI(poi)}
-                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all
-                  ${index === 0 ? 'bg-zinc-800 border border-zinc-700' : 'bg-zinc-900 hover:bg-zinc-800'}`}
               >
                 <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md"
                   style={{ backgroundColor: config.color }}
                 >
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm truncate">{poi.name}</p>
-                  <p className="text-zinc-500 text-xs truncate">{config.label}</p>
-                </div>
-
-                <div className="text-right flex-shrink-0">
-                  <p className="text-white font-semibold text-sm">{poi.distanceMiles.toFixed(1)} mi</p>
-                  {direction && (
-                    <p className="text-zinc-500 text-xs">{direction}</p>
-                  )}
+                  <Icon className="w-4 h-4 text-white" />
+                  <span className="text-white font-semibold text-xs whitespace-nowrap">
+                    {poi.distanceMiles.toFixed(1)} mi
+                  </span>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
 
-      <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center justify-center gap-4 text-xs text-zinc-500">
-          <span>{stopsAhead.length} stops ahead</span>
-          {position && (
-            <>
-              <span className="text-zinc-700">|</span>
-              <span>
-                {position.heading !== null 
-                  ? `Heading ${Math.round(position.heading)}°` 
-                  : 'No heading'}
-              </span>
-            </>
+        <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10">
+          <TruckIcon />
+          {isTracking && (
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            </div>
           )}
         </div>
-      </div>
 
-      {selectedPOI && (
-        <div 
-          className="absolute inset-0 bg-black/60 z-30 flex items-end justify-center p-3" 
-          onClick={() => setSelectedPOI(null)}
-        >
-          <Card 
-            className="w-full max-w-md p-4 bg-zinc-900 border-zinc-800 rounded-2xl" 
-            onClick={e => e.stopPropagation()}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 text-white text-xs bg-black/50 px-4 py-1.5 rounded-full">
+          <span className="font-medium">{position?.speed ? `${Math.round(position.speed * 2.237)} mph` : '--'}</span>
+          <span className="text-white/50">|</span>
+          <span>{stopsAhead.length} ahead</span>
+        </div>
+
+        {selectedPOI && (
+          <div 
+            className="absolute inset-0 bg-black/40 z-30 flex items-end justify-center p-3" 
+            onClick={() => setSelectedPOI(null)}
           >
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-3">
-                {(() => {
-                  const config = getCategoryConfig(selectedPOI.category);
-                  const Icon = config.icon;
-                  return (
-                    <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: config.color }}
-                    >
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                  );
-                })()}
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{selectedPOI.name}</h3>
-                  <p className="text-sm text-zinc-400">{getCategoryConfig(selectedPOI.category).label}</p>
+            <Card 
+              className="w-full max-w-sm p-3 bg-zinc-900 border-zinc-800" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const config = getCategoryConfig(selectedPOI.category);
+                    const Icon = config.icon;
+                    return (
+                      <div 
+                        className="w-10 h-10 rounded flex items-center justify-center"
+                        style={{ backgroundColor: config.color }}
+                      >
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                    );
+                  })()}
+                  <div>
+                    <h3 className="text-base font-semibold text-white leading-tight">{selectedPOI.name}</h3>
+                    <p className="text-xs text-zinc-400">{getCategoryConfig(selectedPOI.category).label}</p>
+                  </div>
                 </div>
-              </div>
-              <button 
-                onClick={() => setSelectedPOI(null)}
-                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-3 text-zinc-300 bg-zinc-800/50 rounded-lg px-3 py-2">
-                <Navigation2 className="w-4 h-4 text-amber-500" />
-                <span className="font-medium">{selectedPOI.distanceMiles.toFixed(1)} miles ahead</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPOI(null)}>
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
               
-              {selectedPOI.address && (
-                <div className="flex items-center gap-3 text-zinc-400">
-                  <MapPin className="w-4 h-4 text-zinc-600" />
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <MapPin className="w-3.5 h-3.5 text-zinc-500" />
                   <span>{selectedPOI.address}</span>
                 </div>
-              )}
-              {selectedPOI.hoursOfOperation && (
-                <div className="flex items-center gap-3 text-zinc-400">
-                  <Clock className="w-4 h-4 text-zinc-600" />
-                  <span>{selectedPOI.hoursOfOperation}</span>
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <Navigation2 className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>{selectedPOI.distanceMiles.toFixed(1)} miles ahead</span>
                 </div>
-              )}
-              {selectedPOI.notes && (
-                <div className="flex items-start gap-3 text-zinc-400">
-                  <FileText className="w-4 h-4 text-zinc-600 mt-0.5" />
-                  <span>{selectedPOI.notes}</span>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
+                {selectedPOI.hoursOfOperation && (
+                  <div className="flex items-center gap-2 text-zinc-300">
+                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{selectedPOI.hoursOfOperation}</span>
+                  </div>
+                )}
+                {selectedPOI.notes && (
+                  <div className="flex items-start gap-2 text-zinc-300">
+                    <FileText className="w-3.5 h-3.5 text-zinc-500 mt-0.5" />
+                    <span>{selectedPOI.notes}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

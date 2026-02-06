@@ -12,15 +12,6 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Driving Screen HUD Redesign (Feb 2026)
-- Removed illustrated road scene (sky, grass, road SVG)
-- Dark neutral background (zinc-950) for minimal HUD aesthetic
-- Icon-only filter buttons in floating pill bar (no labels)
-- Subtle GPS status: small colored dot (green=tracking, red=error) instead of banner
-- POIs displayed as clean list cards with distance, bearing direction, and category
-- Minimal footer with stops count and heading info
-- Tap any POI card to see details in a bottom sheet
-
 ### Driving Engine Module (Feb 2026)
 - Created `/core/driving-engine/` module: pure TypeScript logic with no React/UI dependencies
 - Features: `processDrivingState()` API that accepts position/heading/speed/POIs and returns filtered POIs ahead with distances/bearings
