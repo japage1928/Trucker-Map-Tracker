@@ -17,7 +17,6 @@ import {
   getUserPreferences,
   type UserPreferences
 } from '@/lib/userMemory';
-import { TrackingMap } from '@/components/TrackingMap';
 import { DrivingHudOverlay } from '@/components/DrivingHudOverlay';
 import { ParkingHudBadge } from '@/components/ParkingLikelihoodBadge';
 import type { POIWithDistance } from '@/lib/geo-utils';
@@ -244,6 +243,28 @@ export default function DrivingScreen() {
     () => mapStopsForDisplay(stopsAhead),
     [stopsAhead]
   );
+  const nextStop = stopsAheadWithDistance[0] ?? null;
+  const detailStop = selectedStop ?? nextStop;
+  const detailLabel = selectedStop ? 'Selected POI' : 'Next POI';
+
+  const getDistanceTone = (distanceMiles?: number) => {
+    if (distanceMiles === undefined || distanceMiles === null) return 'text-slate-200';
+    if (distanceMiles <= 5) return 'text-emerald-300';
+    if (distanceMiles >= 15) return 'text-red-300';
+    return 'text-amber-300';
+  };
+
+  const getParkingStatusForStop = (stop?: POIWithDistance | null) => {
+    if (!locations || !stop) return null;
+    if (stop.facilityKind !== 'truck stop' && stop.facilityKind !== 'rest area') {
+      return null;
+    }
+    const location = locations.find(loc => loc.id === stop.id);
+    if (!location) return null;
+    const profile = locationToStopProfile(location);
+    if (!profile) return null;
+    return getParkingLikelihood(profile, Date.now());
+  };
 
   const aiContext = useMemo(() => {
     const speedMph = position?.speed !== null && position?.speed !== undefined
@@ -321,184 +342,150 @@ export default function DrivingScreen() {
   }
 
   return (
-    <div className="fixed inset-0 bg-white text-slate-900">
-      <div className="flex h-full flex-col">
-        <div className="flex flex-wrap items-center gap-3 border-b px-3 py-2 text-xs">
-          <span className="font-medium">Driving</span>
-          <span>Tracking: {isTracking ? 'On' : 'Off'}</span>
-          <span>Speed: {position?.speed ? `${Math.round(position.speed * 2.237)} mph` : '--'}</span>
-          <span>Heading: {position?.heading !== null && position?.heading !== undefined ? `${Math.round(position.heading)}°` : '--'}</span>
-        </div>
+    <div className="fixed inset-0 text-slate-100">
+      <div className="relative h-full w-full hud-texture">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
 
-        {error && (
-          <div className="border-b px-3 py-2 text-xs text-red-600">
-            GPS: {error}
-          </div>
-        )}
-
-        {showLocationBanner && (
-          <div className="border-b px-3 py-2 bg-blue-50 text-blue-900 text-xs flex items-start gap-2">
-            <div className="flex-1">
-              <strong>Privacy:</strong> {LOCATION_DISCLOSURE}
+        <div className="relative z-10 flex h-full flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-[11px] uppercase tracking-[0.2em]">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-amber-300">Drive HUD</span>
+              <span className="text-white/70">Tracking {isTracking ? 'On' : 'Off'}</span>
             </div>
-            <button
-              onClick={dismissLocationBanner}
-              className="shrink-0 text-blue-900 hover:text-blue-700"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-4 text-white/80">
+              <span>Speed {position?.speed ? `${Math.round(position.speed * 2.237)} mph` : '--'}</span>
+              <span>Heading {position?.heading !== null && position?.heading !== undefined ? `${Math.round(position.heading)} deg` : '--'}</span>
+            </div>
           </div>
-        )}
 
-        <div className="flex-1 min-h-0 relative">
-          <TrackingMap
-            position={position}
-            stopsAhead={stopsAheadWithDistance}
-            selectedStop={selectedStop}
-            onStopSelect={handleSelectStop}
-          />
-          <DrivingHudOverlay
-            pois={stopsAheadWithDistance}
-            maxDistanceMiles={currentRange}
-            onPinSelect={handleSelectStop}
-          />
-          {parkingLikelihood && (
-            <ParkingHudBadge
-              status={parkingLikelihood.status}
-              explanation={parkingLikelihood.explanation}
-              showExplanation={showExplanation}
-              visible={true}
-            />
+          {error && (
+            <div className="border-b border-red-500/40 bg-red-500/10 px-4 py-2 text-[11px] text-red-200">
+              GPS: {error}
+            </div>
           )}
-          <TruckerAiHudControl context={aiContext} />
-        </div>
 
-        <div className="border-t px-3 py-2 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            {SEARCH_BUTTONS.map(searchType => {
-              const isActive = activeSearch === searchType;
-              return (
-                <button
-                  key={searchType}
-                  onClick={() => handleSearchButton(searchType)}
-                  className={`border px-2 py-1 ${isActive ? 'bg-slate-200' : 'bg-white'}`}
-                >
-                  {SEARCH_LABELS[searchType]}
-                </button>
-              );
-            })}
-            <span className="text-slate-600">Range: {currentRange} mi</span>
-          </div>
+          {showLocationBanner && (
+            <div className="border-b border-blue-500/30 bg-blue-500/10 px-4 py-2 text-[11px] text-blue-100 flex items-start gap-2">
+              <div className="flex-1">
+                <strong>Privacy:</strong> {LOCATION_DISCLOSURE}
+              </div>
+              <button
+                onClick={dismissLocationBanner}
+                className="shrink-0 text-blue-100 hover:text-blue-50"
+                aria-label="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
-          <div className="mt-2 grid gap-3 md:grid-cols-2">
-            <div>
-              <div className="font-medium">Stops Ahead</div>
-              {!position ? (
-                <div className="text-slate-500">Waiting for GPS...</div>
-              ) : stopsAheadWithDistance.length === 0 ? (
-                <div className="text-slate-500">No stops in range.</div>
-              ) : (
-                <div className="mt-1 max-h-36 overflow-auto border">
-                  {stopsAheadWithDistance.map(stop => {
-                    // Calculate parking likelihood for this stop
-                    const parkingStatus = (() => {
-                      if (!locations || (stop.facilityKind !== 'truck stop' && stop.facilityKind !== 'rest area')) {
-                        return null;
-                      }
-                      const location = locations.find(loc => loc.id === stop.id);
-                      if (!location) return null;
-                      const profile = locationToStopProfile(location);
-                      if (!profile) return null;
-                      return getParkingLikelihood(profile, Date.now());
-                    })();
+          <div className="relative flex-1 min-h-0">
+            <DrivingHudOverlay
+              pois={stopsAheadWithDistance}
+              maxDistanceMiles={currentRange}
+              onPinSelect={handleSelectStop}
+            />
 
+            <div className="absolute left-4 top-6 flex flex-col gap-4">
+              <div className="glass-card px-3 py-2">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-white/60">Next Stop</div>
+                {!nextStop ? (
+                  <div className="mt-2 text-sm text-white/70">Waiting for POIs...</div>
+                ) : (
+                  <div className="mt-2 space-y-1">
+                    <div className="text-base font-semibold text-white">{nextStop.name}</div>
+                    <div className="text-xs text-white/60">{nextStop.facilityKind || 'Location'}</div>
+                    <div className={`text-lg font-bold ${getDistanceTone(nextStop.distanceMiles)}`}>
+                      {nextStop.distanceMiles.toFixed(1)} mi
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="glass-card px-3 py-2">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-white/60">Filters</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {SEARCH_BUTTONS.map(searchType => {
+                    const isActive = activeSearch === searchType;
                     return (
                       <button
-                        key={stop.id}
-                        onClick={() => handleSelectStop(stop)}
-                        className={`flex w-full items-start justify-between gap-2 border-b px-2 py-1 text-left ${selectedStop?.id === stop.id ? 'bg-slate-100' : ''}`}
+                        key={searchType}
+                        onClick={() => handleSearchButton(searchType)}
+                        className={`rounded-sm border px-2 py-1 text-[10px] uppercase tracking-[0.2em] ${
+                          isActive ? 'border-amber-300 bg-amber-300/20 text-amber-100' : 'border-white/15 text-white/70'
+                        }`}
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="truncate font-medium">{stop.name}</div>
-                            {parkingStatus && (
-                              <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
-                                parkingStatus.status === 'LIKELY_AVAILABLE' ? 'status-available' :
-                                parkingStatus.status === 'UNCERTAIN' ? 'status-uncertain' :
-                                'status-full'
-                              }`}>
-                                {parkingStatus.status === 'LIKELY_AVAILABLE' ? '✓' :
-                                 parkingStatus.status === 'UNCERTAIN' ? '?' :
-                                 '✕'}
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-slate-600">{stop.facilityKind || 'Location'}</div>
-                        </div>
-                        <div className="shrink-0 text-slate-700">{stop.distanceMiles.toFixed(1)} mi</div>
+                        {SEARCH_LABELS[searchType]}
                       </button>
                     );
                   })}
                 </div>
-              )}
+                <div className="mt-2 text-[10px] text-white/50">Range {currentRange} mi</div>
+              </div>
             </div>
 
-            <div>
-              <div className="font-medium">Details</div>
-              {!selectedStop ? (
-                <div className="text-slate-500">Select a stop to view details.</div>
-              ) : (
-                <div className="mt-1 border p-2">
-                  <div className="font-medium">{selectedStop.name}</div>
-                  <div className="text-slate-600">{selectedStop.facilityKind || 'Location'}</div>
-                  <div className="text-slate-600">{selectedStop.distanceMiles.toFixed(1)} miles ahead</div>
-                  {selectedStop.address && (
-                    <div className="text-slate-600">{selectedStop.address}</div>
-                  )}
-                  {selectedStop.hoursOfOperation && (
-                    <div className="text-slate-600">Hours: {selectedStop.hoursOfOperation}</div>
-                  )}
-                  {selectedStop.notes && (
-                    <div className="text-slate-600">Notes: {selectedStop.notes}</div>
-                  )}
-                  
-                  {/* Show parking likelihood for truck stops and rest areas */}
-                  {(() => {
-                    if (!locations || (selectedStop.facilityKind !== 'truck stop' && selectedStop.facilityKind !== 'rest area')) {
-                      return null;
-                    }
-                    const location = locations.find(loc => loc.id === selectedStop.id);
-                    if (!location) return null;
-                    const profile = locationToStopProfile(location);
-                    if (!profile) return null;
-                    const selectedParkingLikelihood = getParkingLikelihood(profile, Date.now());
-                    
-                    return selectedParkingLikelihood ? (
-                      <div className="mt-2 pt-2 border-t">
-                        <div className="text-xs font-medium text-slate-700 mb-1">Parking Likelihood</div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            selectedParkingLikelihood.status === 'LIKELY_AVAILABLE' ? 'status-available' :
-                            selectedParkingLikelihood.status === 'UNCERTAIN' ? 'status-uncertain' :
-                            'status-full'
-                          }`}>
-                            {selectedParkingLikelihood.status === 'LIKELY_AVAILABLE' ? '✓ Available' :
-                             selectedParkingLikelihood.status === 'UNCERTAIN' ? '? Uncertain' :
-                             '✕ Likely Full'}
-                          </span>
-                        </div>
-                        {showExplanation && (
-                          <div className="text-xs text-slate-600 mt-1">
-                            {selectedParkingLikelihood.explanation}
+            <div className="absolute right-4 top-6 w-[260px] space-y-3">
+              <div className="glass-card px-3 py-3">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-white/60">{detailLabel}</div>
+                {!detailStop ? (
+                  <div className="mt-2 text-sm text-white/70">Tap a pin to lock details.</div>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    <div>
+                      <div className="text-base font-semibold text-white">{detailStop.name}</div>
+                      <div className="text-xs text-white/60">{detailStop.facilityKind || 'Location'}</div>
+                    </div>
+                    <div className={`text-lg font-bold ${getDistanceTone(detailStop.distanceMiles)}`}>
+                      {detailStop.distanceMiles.toFixed(1)} mi ahead
+                    </div>
+                    {detailStop.address && (
+                      <div className="text-xs text-white/70">{detailStop.address}</div>
+                    )}
+                    {detailStop.hoursOfOperation && (
+                      <div className="text-xs text-white/70">Hours: {detailStop.hoursOfOperation}</div>
+                    )}
+                    {detailStop.notes && (
+                      <div className="text-xs text-white/60">Notes: {detailStop.notes}</div>
+                    )}
+                    {(() => {
+                      const status = getParkingStatusForStop(detailStop);
+                      if (!status) return null;
+                      return (
+                        <div className="pt-2 border-t border-white/10">
+                          <div className="text-[10px] uppercase tracking-[0.3em] text-white/60">Parking</div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded ${
+                                status.status === 'LIKELY_AVAILABLE' ? 'status-available' :
+                                status.status === 'UNCERTAIN' ? 'status-uncertain' :
+                                'status-full'
+                              }`}
+                            >
+                              {status.status === 'LIKELY_AVAILABLE' ? 'Available' :
+                               status.status === 'UNCERTAIN' ? 'Uncertain' :
+                               'Likely Full'}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              )}
+                          {showExplanation && (
+                            <div className="mt-1 text-[10px] text-white/60">{status.explanation}</div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {parkingLikelihood && (
+              <ParkingHudBadge
+                status={parkingLikelihood.status}
+                explanation={parkingLikelihood.explanation}
+                showExplanation={showExplanation}
+                visible={true}
+              />
+            )}
+            <TruckerAiHudControl context={aiContext} />
           </div>
         </div>
       </div>
