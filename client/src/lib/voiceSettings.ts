@@ -61,6 +61,24 @@ export function getBestVoice(preferredGender: VoiceGender): SpeechSynthesisVoice
   return voices[0] || null;
 }
 
+function normalizeSpeechText(text: string): string {
+  if (!text) return text;
+
+  let normalized = text.trim();
+
+  // Expand common abbreviations for clarity.
+  normalized = normalized.replace(/\bETA\b/gi, "E T A");
+  normalized = normalized.replace(/\bmph\b/gi, "miles per hour");
+  normalized = normalized.replace(/\bmi\b/gi, "miles");
+  normalized = normalized.replace(/\bhrs\b/gi, "hours");
+  normalized = normalized.replace(/\bmins\b/gi, "minutes");
+
+  // Encourage natural pauses between sentences.
+  normalized = normalized.replace(/([.!?])\s+/g, "$1  ");
+
+  return normalized;
+}
+
 export async function speakText(
   text: string,
   options?: {
@@ -77,14 +95,16 @@ export async function speakText(
 
   window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = options?.rate ?? 0.95;
-  utterance.pitch = options?.pitch ?? 1;
+  const utterance = new SpeechSynthesisUtterance(normalizeSpeechText(text));
+  utterance.rate = options?.rate ?? 0.9;
+  utterance.pitch = options?.pitch ?? 1.05;
+  utterance.volume = 0.95;
 
   const gender = getVoiceGender();
   const voice = getBestVoice(gender);
   if (voice) {
     utterance.voice = voice;
+    utterance.lang = voice.lang || "en-US";
   }
 
   utterance.onstart = () => options?.onStart?.();

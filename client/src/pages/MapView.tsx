@@ -3,8 +3,7 @@ import { ClusteredMap, LocationInfo, FullnessStatus } from "@/components/Cluster
 import { LocationDetailPanel } from "@/components/LocationDetailPanel";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
-import { Plus, Locate, Loader2 } from "lucide-react";
+import { Locate, Loader2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -114,11 +113,6 @@ export default function MapView() {
               <Locate className="w-4 h-4" />
             )}
           </Button>
-          <Link href="/new">
-            <Button size="sm" className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" /> Add
-            </Button>
-          </Link>
         </div>
       </div>
 

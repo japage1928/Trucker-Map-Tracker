@@ -4,10 +4,12 @@ import { db } from "./db";
 import { conversations, messages, fullnessReports, locations } from "@shared/schema";
 import { eq, desc, and, gte } from "drizzle-orm";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    })
+  : null;
 
 interface WeatherAlert {
   event: string;
@@ -193,6 +195,12 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
   // Send message and get AI response (streaming)
   app.post("/api/trucker-chat/conversations/:id/messages", async (req: Request, res: Response) => {
     try {
+      if (!openai) {
+        return res.status(503).json({
+          error: "AI service unavailable. Set AI_INTEGRATIONS_OPENAI_API_KEY to enable.",
+        });
+      }
+
       const conversationId = parseInt(req.params.id as string);
       const { content, userLocation, aiContext } = req.body as {
         content: string;

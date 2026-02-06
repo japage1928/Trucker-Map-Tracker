@@ -296,7 +296,7 @@ export class TruckerAiVoiceSession {
           this.setState('idle');
         }
       },
-      rate: this.context.drivingState === 'driving' ? 1.05 : 0.95,
+      rate: this.context.drivingState === 'driving' ? 0.96 : 0.88,
     });
   }
 }
