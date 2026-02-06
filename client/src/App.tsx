@@ -9,13 +9,14 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import HomePage from "@/pages/HomePage";
 import LocationList from "@/pages/LocationList";
 import LocationDetail from "@/pages/LocationDetail";
-import CreateLocation from "@/pages/CreateLocation";
 import EditLocation from "@/pages/EditLocation";
 import MapView from "@/pages/MapView";
 import TrackingView from "@/pages/TrackingView";
 import DrivingScreen from "@/pages/DrivingScreen";
 import ChatPage from "@/pages/ChatPage";
 import SettingsPage from "@/pages/SettingsPage";
+import HOSPage from "@/pages/HOSPage";
+import TripsPage from "@/pages/TripsPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import AuthPage from "@/pages/auth-page";
@@ -29,7 +30,8 @@ function Router() {
       <ProtectedRoute path="/map" component={MapView} />
       <ProtectedRoute path="/drive" component={DrivingScreen} />
       <ProtectedRoute path="/chat" component={ChatPage} />
-      <ProtectedRoute path="/new" component={CreateLocation} />
+      <ProtectedRoute path="/hos" component={HOSPage} />
+      <ProtectedRoute path="/trips" component={TripsPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
       <ProtectedRoute path="/privacy" component={PrivacyPolicyPage} />
       <ProtectedRoute path="/terms" component={TermsOfServicePage} />

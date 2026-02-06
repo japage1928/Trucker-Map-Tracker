@@ -28,6 +28,35 @@ interface AiContextPayload {
   nextStopEtaMinutes?: number | null;
   traffic?: { status: "unavailable" };
   roadConditions?: { status: "unavailable" };
+  hos?: {
+    dutyStatus: "OFF" | "ON" | "DRIVING" | "SLEEPER";
+    driveTimeRemainingHours: number;
+    onDutyRemainingHours: number;
+    lastUpdated: string;
+  };
+  weather?: {
+    condition: "CLEAR" | "RAIN" | "SNOW" | "FOG" | "WIND" | "UNKNOWN";
+    severity: "LOW" | "MODERATE" | "HIGH";
+    alert?: string;
+    temperatureFahrenheit?: number;
+    windSpeedMph?: number;
+    visibilityMiles?: number;
+  };
+  trafficContext?: {
+    delayMinutes: number;
+    congestionLevel: "LOW" | "MODERATE" | "HIGH";
+  };
+  trips?: Array<{
+    id: string;
+    title: string;
+    origin: string;
+    destination: string;
+    plannedDate?: string;
+    distanceMiles?: number;
+    etaMinutes?: number;
+    notes?: string;
+    createdAt: string;
+  }>;
 }
 
 async function fetchWeatherAlerts(lat: number, lng: number): Promise<WeatherAlert[]> {
@@ -103,6 +132,17 @@ Safety rules:
 
 Always prioritize driver safety and compliance with regulations.`;
 
+const TRIP_ACTION_GUIDANCE = `
+
+If the driver asks to create, update, or delete a trip, append an action payload on a new line in this exact format:
+TRIP_ACTION_JSON: {"action":"trip.create","payload":{...}}
+or
+TRIP_ACTION_JSON: {"action":"trip.update","id":"<trip id>","payload":{...}}
+or
+TRIP_ACTION_JSON: {"action":"trip.delete","id":"<trip id>"}
+
+Keep the action JSON last in the response. Do not wrap it in code fences.`;
+
 function buildAiContextPrompt(aiContext: AiContextPayload | undefined, weatherAlerts: WeatherAlert[]) {
   const payload = {
     drivingState: aiContext?.drivingState ?? "unknown",
@@ -112,6 +152,10 @@ function buildAiContextPrompt(aiContext: AiContextPayload | undefined, weatherAl
     nextStopEtaMinutes: aiContext?.nextStopEtaMinutes ?? null,
     traffic: aiContext?.traffic ?? { status: "unavailable" },
     roadConditions: aiContext?.roadConditions ?? { status: "unavailable" },
+    hos: aiContext?.hos ?? null,
+    weather: aiContext?.weather ?? null,
+    trafficContext: aiContext?.trafficContext ?? null,
+    trips: aiContext?.trips ?? [],
     weatherAlerts: weatherAlerts.map((alert) => ({
       event: alert.event,
       headline: alert.headline,
@@ -224,7 +268,7 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
       res.setHeader("Connection", "keep-alive");
 
       const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: TRUCKER_SYSTEM_PROMPT },
+        { role: "system", content: `${TRUCKER_SYSTEM_PROMPT}${TRIP_ACTION_GUIDANCE}` },
       ];
 
       // Add location context and weather alerts if location provided

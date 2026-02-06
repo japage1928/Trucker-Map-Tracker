@@ -28,6 +28,10 @@ import { getParkingLikelihood } from '@shared/parking-likelihood';
 import { logParkingPing } from '@/lib/parking-ping';
 import { LOCATION_DISCLOSURE } from '@/lib/location-disclosure';
 import { X } from 'lucide-react';
+import { useHOSTracking } from '@/hooks/use-hos-tracking';
+import { useTrips } from '@/hooks/use-trips';
+import { fetchWeatherContext, getWeatherAlert } from '@/lib/weather-adapter';
+import type { WeatherContext } from '@shared/weather-types';
 
 const SEARCH_BUTTONS = ['fuel', 'food', 'parking'] as const;
 type SearchType = typeof SEARCH_BUTTONS[number];
@@ -130,6 +134,9 @@ export default function DrivingScreen() {
   const [activeSearch, setActiveSearch] = useState<SearchType | null>(null);
   const [selectedStop, setSelectedStop] = useState<POIWithDistance | null>(null);
   const showExplanation = useShowExplanation();
+  const { hos } = useHOSTracking();
+  const { trips } = useTrips();
+  const [weatherContext, setWeatherContext] = useState<WeatherContext | null>(null);
   
   // Location disclosure banner
   const [showLocationBanner, setShowLocationBanner] = useState(() => {
@@ -153,6 +160,21 @@ export default function DrivingScreen() {
     minDistanceMeters: 30,
     minHeadingChange: 5
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!position) return;
+
+    fetchWeatherContext(position.lat, position.lng).then((context) => {
+      if (cancelled || !context) return;
+      const alert = getWeatherAlert(context);
+      setWeatherContext({ ...context, alert });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [position]);
 
   const handleSelectStop = (poi: POIWithDistance) => {
     setSelectedStop(poi);
@@ -235,8 +257,11 @@ export default function DrivingScreen() {
         distanceMiles: stop.distanceMiles,
         facilityKind: stop.facilityKind,
       })),
+      hos: hos || undefined,
+      weather: weatherContext || undefined,
+      trips,
     });
-  }, [position, stopsAheadWithDistance]);
+  }, [position, stopsAheadWithDistance, hos, weatherContext, trips]);
 
   // Parking likelihood for next relevant stop
   const parkingLikelihood = useMemo(() => {

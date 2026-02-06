@@ -2,7 +2,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Search, MapPin, Truck, Clock, Navigation, Plus } from "lucide-react";
+import { Search, MapPin, Truck, Clock, Navigation } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,12 +31,9 @@ export default function LocationList() {
           <p className="text-muted-foreground">Manage your offline delivery database</p>
         </div>
         
-        <Link href="/new">
-          <Button className="w-full md:w-auto gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
-            <Plus className="w-5 h-5" />
-            Add New Facility
-          </Button>
-        </Link>
+        <div className="text-sm text-muted-foreground">
+          Adding new facilities is disabled.
+        </div>
       </div>
 
       {/* Search */}
@@ -59,7 +56,7 @@ export default function LocationList() {
         <div className="text-center py-20 space-y-4 opacity-50">
           <Truck className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-xl font-bold">No locations found</h3>
-          <p>Add your first delivery point to get started.</p>
+          <p>No facilities available in your database.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

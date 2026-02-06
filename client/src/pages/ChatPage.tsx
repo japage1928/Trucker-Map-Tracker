@@ -9,6 +9,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { useLocations } from "@/hooks/use-locations";
 import { processDrivingState, type POIInput } from "@core/driving-engine";
 import { buildAiContext } from "@/lib/ai-context";
+import { useHOSTracking } from "@/hooks/use-hos-tracking";
+import { useTrips } from "@/hooks/use-trips";
+import { fetchWeatherContext, getWeatherAlert } from "@/lib/weather-adapter";
+import type { WeatherContext } from "@shared/weather-types";
 
 interface Message {
   id: number;
@@ -34,6 +38,9 @@ export default function ChatPage() {
   const [userSpeedMph, setUserSpeedMph] = useState<number | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const { data: locations } = useLocations();
+  const { hos } = useHOSTracking();
+  const { trips, addTrip, removeTrip, updateTrip } = useTrips();
+  const [weatherContext, setWeatherContext] = useState<WeatherContext | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -93,6 +100,21 @@ export default function ChatPage() {
       );
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userLocation) return;
+
+    fetchWeatherContext(userLocation.lat, userLocation.lng).then((context) => {
+      if (cancelled || !context) return;
+      const alert = getWeatherAlert(context);
+      setWeatherContext({ ...context, alert });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userLocation]);
 
   useEffect(() => {
     return () => {
@@ -194,6 +216,38 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeConversation?.messages, streamingContent]);
 
+  const stripTripAction = (text: string) => {
+    if (!text) return text;
+    return text.replace(/\n?TRIP_ACTION_JSON:[\s\S]*$/i, "").trim();
+  };
+
+  const extractTripAction = (text: string) => {
+    const match = text.match(/TRIP_ACTION_JSON:\s*([\s\S]*)$/i);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      return null;
+    }
+  };
+
+  const applyTripAction = (action: any) => {
+    if (!action || typeof action !== "object") return;
+    if (action.action === "trip.create" && action.payload) {
+      addTrip(action.payload);
+      return;
+    }
+    if (action.action === "trip.delete") {
+      const id = action.id || trips.find((trip) => trip.title?.toLowerCase() === String(action.title || "").toLowerCase())?.id;
+      if (id) removeTrip(id);
+      return;
+    }
+    if (action.action === "trip.update" && action.payload) {
+      const id = action.id || trips.find((trip) => trip.title?.toLowerCase() === String(action.title || "").toLowerCase())?.id;
+      if (id) updateTrip(id, action.payload);
+    }
+  };
+
   // Send message with streaming
   const sendMessage = async (overrideMessage?: string) => {
     const messageToSend = overrideMessage || input;
@@ -240,11 +294,16 @@ export default function ChatPage() {
               }
               if (data.done) {
                 const fullResponse = data.fullContent || accumulatedContent;
+                const tripAction = extractTripAction(fullResponse);
+                if (tripAction) {
+                  applyTripAction(tripAction);
+                }
+                const displayResponse = stripTripAction(fullResponse);
                 setIsStreaming(false);
                 setStreamingContent("");
                 queryClient.invalidateQueries({ queryKey: ["/api/trucker-chat/conversations", activeConversationId] });
-                if (autoSpeak && fullResponse) {
-                  setTimeout(() => speak(fullResponse), 100);
+                if (autoSpeak && displayResponse) {
+                  setTimeout(() => speak(displayResponse), 100);
                 }
               }
             } catch (e) {
@@ -276,6 +335,7 @@ export default function ChatPage() {
   };
 
   const messages = activeConversation?.messages || [];
+  const streamingDisplay = stripTripAction(streamingContent);
 
   const stopsAhead = useMemo(() => {
     if (!userLocation || !locations) return [];
@@ -326,8 +386,11 @@ export default function ChatPage() {
         distanceMiles: poi.distanceMiles,
         facilityKind: poi.category,
       })),
+      hos: hos || undefined,
+      weather: weatherContext || undefined,
+      trips,
     });
-  }, [stopsAhead, userLocation, userSpeedMph]);
+  }, [stopsAhead, userLocation, userSpeedMph, hos, weatherContext, trips]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)]">
@@ -431,10 +494,12 @@ export default function ChatPage() {
                         msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <p className="whitespace-pre-wrap">
+                        {msg.role === "assistant" ? stripTripAction(msg.content) : msg.content}
+                      </p>
                       {msg.role === "assistant" && (
                         <button
-                          onClick={() => speakingMessageId === msg.id ? stopSpeakingHandler() : speak(msg.content, msg.id)}
+                          onClick={() => speakingMessageId === msg.id ? stopSpeakingHandler() : speak(stripTripAction(msg.content), msg.id)}
                           className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                         >
                           {speakingMessageId === msg.id ? (
@@ -458,13 +523,13 @@ export default function ChatPage() {
                 ))}
 
                 {/* Streaming message */}
-                {streamingContent && (
+                {streamingDisplay && (
                   <div className="flex gap-3 justify-start">
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Bot className="w-5 h-5 text-primary" />
                     </div>
                     <div className="max-w-[80%] rounded-lg px-4 py-2 bg-muted">
-                      <p className="whitespace-pre-wrap">{streamingContent}</p>
+                      <p className="whitespace-pre-wrap">{streamingDisplay}</p>
                     </div>
                   </div>
                 )}

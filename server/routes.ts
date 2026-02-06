@@ -43,19 +43,9 @@ export async function registerRoutes(
   });
 
   app.post(api.locations.create.path, requireAuth, async (req, res) => {
-    try {
-      const input = api.locations.create.input.parse(req.body);
-      const location = await storage.createLocation(input);
-      res.status(201).json(location);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
-        });
-      }
-      throw err;
-    }
+    return res.status(403).json({
+      message: "Creating new facilities is disabled.",
+    });
   });
 
   app.put(api.locations.update.path, requireAuth, async (req, res) => {

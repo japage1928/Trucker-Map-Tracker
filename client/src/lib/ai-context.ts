@@ -9,6 +9,18 @@ export interface AiPoiSummary {
   facilityKind?: string;
 }
 
+export interface AiTripSummary {
+  id: string;
+  title: string;
+  origin: string;
+  destination: string;
+  plannedDate?: string;
+  distanceMiles?: number;
+  etaMinutes?: number;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface AiContext {
   drivingState: 'driving' | 'stopped' | 'unknown';
   speedMph: number | null;
@@ -21,6 +33,7 @@ export interface AiContext {
   hos?: HOSTracking;
   weather?: WeatherContext;
   trafficContext?: TrafficContext;
+  trips?: AiTripSummary[];
 }
 
 interface BuildAiContextInput {
@@ -30,6 +43,7 @@ interface BuildAiContextInput {
   hos?: HOSTracking;
   weather?: WeatherContext;
   trafficContext?: TrafficContext;
+  trips?: AiTripSummary[];
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -63,6 +77,7 @@ export function buildAiContext(input: BuildAiContextInput): AiContext {
     hos: input.hos,
     weather: input.weather,
     trafficContext: input.trafficContext,
+    trips: input.trips,
   };
 }
 

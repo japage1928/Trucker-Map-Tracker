@@ -14,6 +14,19 @@ export interface VoiceSessionCallbacks {
 
 const LISTEN_START_TONE = 880;
 const LISTEN_STOP_TONE = 660;
+const TRIPS_STORAGE_KEY = 'driver-trips';
+
+interface TripPlan {
+  id: string;
+  title: string;
+  origin: string;
+  destination: string;
+  plannedDate?: string;
+  distanceMiles?: number;
+  etaMinutes?: number;
+  notes?: string;
+  createdAt: string;
+}
 
 function playTone(frequency: number, durationMs: number) {
   if (typeof window === 'undefined') return;
@@ -46,6 +59,69 @@ function getSpeechRecognitionConstructor() {
 function getCancelCommand(text: string) {
   const trimmed = text.trim().toLowerCase();
   return trimmed === 'cancel' || trimmed === 'stop' || trimmed === 'stop listening' || trimmed === 'never mind' || trimmed === 'nevermind';
+}
+
+function loadTrips(): TripPlan[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(TRIPS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as TripPlan[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTrips(trips: TripPlan[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TRIPS_STORAGE_KEY, JSON.stringify(trips));
+}
+
+function stripTripAction(text: string): string {
+  if (!text) return text;
+  return text.replace(/\n?TRIP_ACTION_JSON:[\s\S]*$/i, '').trim();
+}
+
+function extractTripAction(text: string) {
+  const match = text.match(/TRIP_ACTION_JSON:\s*([\s\S]*)$/i);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+function applyTripAction(action: any) {
+  if (!action || typeof action !== 'object') return;
+  const trips = loadTrips();
+
+  if (action.action === 'trip.create' && action.payload) {
+    const next: TripPlan = {
+      ...action.payload,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    saveTrips([next, ...trips]);
+    return;
+  }
+
+  if (action.action === 'trip.delete') {
+    const id = action.id || trips.find((trip) => trip.title?.toLowerCase() === String(action.title || '').toLowerCase())?.id;
+    if (!id) return;
+    saveTrips(trips.filter((trip) => trip.id !== id));
+    return;
+  }
+
+  if (action.action === 'trip.update' && action.payload) {
+    const id = action.id || trips.find((trip) => trip.title?.toLowerCase() === String(action.title || '').toLowerCase())?.id;
+    if (!id) return;
+    const updated = trips.map((trip) =>
+      trip.id === id ? { ...trip, ...action.payload } : trip
+    );
+    saveTrips(updated);
+  }
 }
 
 
@@ -281,10 +357,21 @@ export class TruckerAiVoiceSession {
       return;
     }
 
+    const tripAction = extractTripAction(text);
+    if (tripAction) {
+      applyTripAction(tripAction);
+    }
+
+    const spokenText = stripTripAction(text);
+    if (!spokenText) {
+      this.startListeningSoon();
+      return;
+    }
+
     this.setState('speaking');
     this.speaking = true;
 
-    await speakText(text, {
+    await speakText(spokenText, {
       onStart: () => {
         this.stopRecognition();
       },
