@@ -1,42 +1,33 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocations } from '@/hooks/use-locations';
 import { useTracking } from '@/hooks/use-tracking';
-import { 
-  processDrivingState, 
+import {
+  processDrivingState,
   filterPOIsByCategory,
   rankPOIsByPreference,
   type POIInput,
-  type POIResult 
+  type POIResult
 } from '@core/driving-engine';
-import { logUserEvent, mapFacilityKindToEventType, mapFacilityKindToCategory, getUserPreferences, type UserPreferences } from '@/lib/userMemory';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { 
-  Loader2, Navigation2, Fuel, Coffee, ParkingCircle, 
-  UtensilsCrossed, X, MapPin, Clock, FileText
-} from 'lucide-react';
-
-const CATEGORY_CONFIG: Record<string, { icon: typeof Fuel; color: string; label: string }> = {
-  fuel: { icon: Fuel, color: '#dc2626', label: 'Gas' },
-  truck_stop: { icon: Fuel, color: '#dc2626', label: 'Truck Stop' },
-  gas: { icon: Fuel, color: '#dc2626', label: 'Gas' },
-  food: { icon: UtensilsCrossed, color: '#eab308', label: 'Fast Food' },
-  restaurant: { icon: UtensilsCrossed, color: '#eab308', label: 'Restaurant' },
-  cafe: { icon: Coffee, color: '#16a34a', label: 'Cafe' },
-  coffee: { icon: Coffee, color: '#16a34a', label: 'Coffee' },
-  parking: { icon: ParkingCircle, color: '#7c3aed', label: 'Parking' },
-  rest_area: { icon: ParkingCircle, color: '#7c3aed', label: 'Rest Area' },
-  warehouse: { icon: MapPin, color: '#64748b', label: 'Warehouse' },
-};
-
-function getCategoryConfig(facilityKind: string) {
-  const kind = facilityKind?.toLowerCase() || '';
-  for (const [key, config] of Object.entries(CATEGORY_CONFIG)) {
-    if (kind.includes(key)) return config;
-  }
-  return { icon: MapPin, color: '#64748b', label: facilityKind || 'Location' };
-}
+import { buildAiContext, type AiContext } from '@/lib/ai-context';
+import {
+  logUserEvent,
+  mapFacilityKindToEventType,
+  mapFacilityKindToCategory,
+  getUserPreferences,
+  type UserPreferences
+} from '@/lib/userMemory';
+import { TrackingMap } from '@/components/TrackingMap';
+import { DrivingHudOverlay } from '@/components/DrivingHudOverlay';
+import { ParkingHudBadge } from '@/components/ParkingLikelihoodBadge';
+import type { POIWithDistance } from '@/lib/geo-utils';
+import { TruckerAiVoiceSession, type VoiceState } from '@/lib/trucker-ai-voice';
+import { useShowExplanation } from '@/hooks/use-parking-insights';
+import { locationToStopProfile } from '@shared/parking-profile-mapper';
+import { getParkingLikelihood } from '@shared/parking-likelihood';
+import { logParkingPing } from '@/lib/parking-ping';
+import { LOCATION_DISCLOSURE } from '@/lib/location-disclosure';
+import { X } from 'lucide-react';
 
 const SEARCH_BUTTONS = ['fuel', 'food', 'parking'] as const;
 type SearchType = typeof SEARCH_BUTTONS[number];
@@ -48,38 +39,107 @@ const SEARCH_CATEGORIES: Record<SearchType, string[]> = {
 };
 
 const SEARCH_LABELS: Record<SearchType, string> = {
-  fuel: 'Gas',
-  food: 'Fast Food',
+  fuel: 'Fuel',
+  food: 'Food',
   parking: 'Parking',
 };
 
 const DEFAULT_RANGE_MILES = 15;
 const EXTENDED_RANGE_MILES = 75;
 
-function TruckIcon() {
+function mapStopsForDisplay(pois: POIResult[]): POIWithDistance[] {
+  return pois.map(poi => ({
+    id: poi.id,
+    name: poi.name,
+    lat: poi.lat,
+    lng: poi.lng,
+    distance: poi.distanceMeters,
+    distanceMiles: poi.distanceMiles,
+    facilityKind: poi.category,
+    hoursOfOperation: poi.hoursOfOperation,
+    notes: poi.notes,
+    address: poi.address || '',
+    bearing: poi.bearing,
+    relativeBearing: poi.relativeBearing,
+  }));
+}
+
+function TruckerAiHudControl({ context }: { context: AiContext }) {
+  const [state, setState] = useState<VoiceState>('idle');
+  const [transcript, setTranscript] = useState('');
+  const sessionRef = useRef<TruckerAiVoiceSession | null>(null);
+
+  if (!sessionRef.current) {
+    sessionRef.current = new TruckerAiVoiceSession(context, {
+      onStateChange: setState,
+      onTranscript: setTranscript,
+      onError: () => setState('error'),
+    });
+  }
+
+  useEffect(() => {
+    sessionRef.current?.updateContext(context);
+  }, [context]);
+
+  useEffect(() => {
+    return () => sessionRef.current?.destroy();
+  }, []);
+
+  const toggle = () => {
+    if (state === 'idle' || state === 'error') {
+      sessionRef.current?.start();
+    } else {
+      sessionRef.current?.stop();
+    }
+  };
+
+  const isListening = state === 'listening';
+  const isSpeaking = state === 'speaking';
+  const isProcessing = state === 'processing';
+  const isUnavailable = state === 'unavailable';
+  const statusLabel = isListening ? 'Listening' : isSpeaking ? 'Speaking' : isProcessing ? 'Working' : 'Idle';
+  const showTranscript = Boolean(transcript);
+
   return (
-    <svg viewBox="0 0 60 40" className="w-16 h-10">
-      <defs>
-        <linearGradient id="truckGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#3b82f6" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-      <rect x="5" y="12" width="50" height="22" rx="2" fill="url(#truckGrad)" />
-      <rect x="12" y="5" width="36" height="10" rx="4" fill="#60a5fa" />
-      <rect x="18" y="7" width="24" height="6" rx="1" fill="#bfdbfe" />
-      <ellipse cx="15" cy="36" rx="5" ry="4" fill="#1f2937" />
-      <ellipse cx="45" cy="36" rx="5" ry="4" fill="#1f2937" />
-      <rect x="6" y="20" width="4" height="3" rx="1" fill="#fbbf24" />
-      <rect x="50" y="20" width="4" height="3" rx="1" fill="#fbbf24" />
-    </svg>
+    <div className="absolute bottom-4 right-4 z-30 flex flex-col items-end gap-2 pointer-events-none">
+      <div className="pointer-events-auto rounded-md bg-white/80 px-2 py-1 text-[10px] text-slate-700 shadow-sm">
+        {statusLabel}
+      </div>
+
+      {showTranscript && (
+        <div className="pointer-events-none max-w-[180px] rounded-md bg-white/70 px-2 py-1 text-[10px] text-slate-600 shadow-sm">
+          {transcript}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={isUnavailable}
+        aria-pressed={state !== 'idle'}
+        className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-sm font-semibold text-slate-900 shadow-sm transition-transform transition-opacity duration-150 ${state !== 'idle' ? 'scale-95' : ''} ${isUnavailable ? 'opacity-50' : 'opacity-100'}`}
+      >
+        AI
+      </button>
+    </div>
   );
 }
 
 export default function DrivingScreen() {
   const { data: locations, isLoading } = useLocations();
   const [activeSearch, setActiveSearch] = useState<SearchType | null>(null);
-  const [selectedPOI, setSelectedPOI] = useState<POIResult | null>(null);
+  const [selectedStop, setSelectedStop] = useState<POIWithDistance | null>(null);
+  const showExplanation = useShowExplanation();
+  
+  // Location disclosure banner
+  const [showLocationBanner, setShowLocationBanner] = useState(() => {
+    return !localStorage.getItem('location-disclosure-dismissed');
+  });
+
+  const dismissLocationBanner = () => {
+    localStorage.setItem('location-disclosure-dismissed', 'true');
+    setShowLocationBanner(false);
+  };
 
   const { data: userPrefs } = useQuery<UserPreferences>({
     queryKey: ["/api/user-preferences"],
@@ -94,13 +154,13 @@ export default function DrivingScreen() {
     minHeadingChange: 5
   });
 
-  const handleSelectPOI = (poi: POIResult) => {
-    setSelectedPOI(poi);
-    const eventType = mapFacilityKindToEventType(poi.category || "");
+  const handleSelectStop = (poi: POIWithDistance) => {
+    setSelectedStop(poi);
+    const eventType = mapFacilityKindToEventType(poi.facilityKind || "");
     if (eventType) {
       logUserEvent(eventType, {
         locationId: poi.id,
-        category: mapFacilityKindToCategory(poi.category || ""),
+        category: mapFacilityKindToCategory(poi.facilityKind || ""),
       });
     }
   };
@@ -158,6 +218,67 @@ export default function DrivingScreen() {
     return filtered.slice(0, 8);
   }, [position, locations, currentRange, activeSearch, userPrefs]);
 
+  const stopsAheadWithDistance = useMemo(
+    () => mapStopsForDisplay(stopsAhead),
+    [stopsAhead]
+  );
+
+  const aiContext = useMemo(() => {
+    const speedMph = position?.speed !== null && position?.speed !== undefined
+      ? position.speed * 2.237
+      : null;
+    return buildAiContext({
+      speedMph,
+      position: position ? { lat: position.lat, lng: position.lng } : null,
+      upcomingPois: stopsAheadWithDistance.map(stop => ({
+        name: stop.name,
+        distanceMiles: stop.distanceMiles,
+        facilityKind: stop.facilityKind,
+      })),
+    });
+  }, [position, stopsAheadWithDistance]);
+
+  // Parking likelihood for next relevant stop
+  const parkingLikelihood = useMemo(() => {
+    if (!locations || stopsAheadWithDistance.length === 0) {
+      return null;
+    }
+
+    // Find the first truck stop or rest area in range
+    const nextStop = stopsAheadWithDistance.find(
+      stop => stop.facilityKind === 'truck stop' || stop.facilityKind === 'rest area'
+    );
+
+    if (!nextStop) {
+      return null;
+    }
+
+    // Find full location object for profile mapping
+    const location = locations.find(loc => loc.id === nextStop.id);
+    if (!location) {
+      return null;
+    }
+
+    const profile = locationToStopProfile(location);
+    if (!profile) {
+      return null;
+    }
+
+    const result = getParkingLikelihood(profile, Date.now());
+    return {
+      ...result,
+      stopName: nextStop.name,
+      stopId: nextStop.id,
+    };
+  }, [locations, stopsAheadWithDistance]);
+
+  // Log parking ping when likelihood is shown (fire-and-forget)
+  useEffect(() => {
+    if (parkingLikelihood?.stopId) {
+      logParkingPing(parkingLikelihood.stopId);
+    }
+  }, [parkingLikelihood?.stopId]);
+
   const handleSearchButton = (searchType: SearchType) => {
     if (activeSearch === searchType) {
       setActiveSearch(null);
@@ -168,222 +289,157 @@ export default function DrivingScreen() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-slate-900">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="flex items-center justify-center h-screen text-sm text-slate-600">
+        Loading locations...
       </div>
     );
   }
 
-  const horizonY = 25;
-  const roadBottom = 100;
-
   return (
-    <div className="fixed inset-0 overflow-hidden select-none">
-      <div className="absolute inset-0">
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(180deg, 
-              #87ceeb 0%, 
-              #87ceeb ${horizonY}%, 
-              #4ade80 ${horizonY}%, 
-              #22c55e 100%)`
-          }}
-        />
-        
-        <svg 
-          className="absolute inset-0 w-full h-full" 
-          viewBox="0 0 100 100" 
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="roadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#52525b" />
-              <stop offset="100%" stopColor="#27272a" />
-            </linearGradient>
-          </defs>
-          
-          <polygon 
-            points={`50,${horizonY} 15,${roadBottom} 85,${roadBottom}`} 
-            fill="url(#roadGrad)" 
-          />
-          
-          <line x1="50" y1={horizonY + 3} x2="50" y2={horizonY + 8} stroke="#fbbf24" strokeWidth="0.4" />
-          <line x1="50" y1={horizonY + 12} x2="50" y2={horizonY + 20} stroke="#fbbf24" strokeWidth="0.5" />
-          <line x1="50" y1={horizonY + 25} x2="50" y2={horizonY + 38} stroke="#fbbf24" strokeWidth="0.7" />
-          <line x1="50" y1={horizonY + 44} x2="50" y2={horizonY + 60} stroke="#fbbf24" strokeWidth="1" />
-          <line x1="50" y1={horizonY + 66} x2="50" y2={roadBottom} stroke="#fbbf24" strokeWidth="1.2" />
-          
-          <line 
-            x1="50" y1={horizonY} 
-            x2="15" y2={roadBottom} 
-            stroke="white" strokeWidth="0.8" 
-          />
-          <line 
-            x1="50" y1={horizonY} 
-            x2="85" y2={roadBottom} 
-            stroke="white" strokeWidth="0.8" 
-          />
-        </svg>
-
-        <div className="absolute top-3 left-3 right-3 z-20 flex flex-col items-center gap-2">
-          <div className="flex gap-2 justify-center">
-            {SEARCH_BUTTONS.map(searchType => {
-              const config = CATEGORY_CONFIG[searchType] || { icon: MapPin, color: '#64748b', label: searchType };
-              const Icon = config.icon;
-              const isActive = activeSearch === searchType;
-              return (
-                <Button
-                  key={searchType}
-                  size="sm"
-                  onClick={() => handleSearchButton(searchType)}
-                  className="gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition-all"
-                  style={{ 
-                    backgroundColor: isActive ? config.color : 'rgba(0,0,0,0.6)',
-                    borderColor: isActive ? 'white' : 'transparent',
-                    color: 'white',
-                    boxShadow: isActive ? '0 0 12px rgba(255,255,255,0.4)' : 'none'
-                  }}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {SEARCH_LABELS[searchType]}
-                </Button>
-              );
-            })}
-          </div>
-          {activeSearch && (
-            <div className="bg-amber-500 text-black px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
-              Searching {EXTENDED_RANGE_MILES} mi ahead for {SEARCH_LABELS[activeSearch]}
-            </div>
-          )}
+    <div className="fixed inset-0 bg-white text-slate-900">
+      <div className="flex h-full flex-col">
+        <div className="flex flex-wrap items-center gap-3 border-b px-3 py-2 text-xs">
+          <span className="font-medium">Driving</span>
+          <span>Tracking: {isTracking ? 'On' : 'Off'}</span>
+          <span>Speed: {position?.speed ? `${Math.round(position.speed * 2.237)} mph` : '--'}</span>
+          <span>Heading: {position?.heading !== null && position?.heading !== undefined ? `${Math.round(position.heading)}°` : '--'}</span>
         </div>
 
         {error && (
-          <div className="absolute top-14 left-4 right-4 z-20 bg-red-600 text-white px-3 py-2 rounded text-xs text-center">
+          <div className="border-b px-3 py-2 text-xs text-red-600">
             GPS: {error}
           </div>
         )}
 
-        <div className="absolute inset-0 pointer-events-none" style={{ top: `${horizonY}%`, bottom: '18%' }}>
-          {stopsAhead.map((poi) => {
-            const config = getCategoryConfig(poi.category);
-            const Icon = config.icon;
-            
-            const distanceRatio = Math.min(poi.distanceMiles / currentRange, 1);
-            
-            const verticalPercent = 5 + distanceRatio * 75;
-            
-            const scale = 1.1 - distanceRatio * 0.6;
-            
-            const bearing = poi.relativeBearing || 0;
-            const isLeft = bearing < 0;
-            
-            const roadWidthAtY = 35 - distanceRatio * 30;
-            const offsetFromCenter = roadWidthAtY * 0.6 + Math.abs(bearing) * 0.15;
-            
-            const horizontalPos = isLeft 
-              ? 50 - offsetFromCenter 
-              : 50 + offsetFromCenter;
-            
-            return (
-              <div
-                key={poi.id}
-                className="absolute pointer-events-auto cursor-pointer transition-all duration-500 ease-out"
-                style={{
-                  top: `${verticalPercent}%`,
-                  left: `${horizontalPos}%`,
-                  transform: `translate(-50%, -50%) scale(${scale})`,
-                  zIndex: Math.round(100 - distanceRatio * 100)
-                }}
-                onClick={() => handleSelectPOI(poi)}
-              >
-                <div 
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md"
-                  style={{ backgroundColor: config.color }}
-                >
-                  <Icon className="w-4 h-4 text-white" />
-                  <span className="text-white font-semibold text-xs whitespace-nowrap">
-                    {poi.distanceMiles.toFixed(1)} mi
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10">
-          <TruckIcon />
-          {isTracking && (
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+        {showLocationBanner && (
+          <div className="border-b px-3 py-2 bg-blue-50 text-blue-900 text-xs flex items-start gap-2">
+            <div className="flex-1">
+              <strong>Privacy:</strong> {LOCATION_DISCLOSURE}
             </div>
-          )}
-        </div>
-
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 text-white text-xs bg-black/50 px-4 py-1.5 rounded-full">
-          <span className="font-medium">{position?.speed ? `${Math.round(position.speed * 2.237)} mph` : '--'}</span>
-          <span className="text-white/50">|</span>
-          <span>{stopsAhead.length} ahead</span>
-        </div>
-
-        {selectedPOI && (
-          <div 
-            className="absolute inset-0 bg-black/40 z-30 flex items-end justify-center p-3" 
-            onClick={() => setSelectedPOI(null)}
-          >
-            <Card 
-              className="w-full max-w-sm p-3 bg-zinc-900 border-zinc-800" 
-              onClick={e => e.stopPropagation()}
+            <button
+              onClick={dismissLocationBanner}
+              className="shrink-0 text-blue-900 hover:text-blue-700"
+              aria-label="Dismiss"
             >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const config = getCategoryConfig(selectedPOI.category);
-                    const Icon = config.icon;
-                    return (
-                      <div 
-                        className="w-10 h-10 rounded flex items-center justify-center"
-                        style={{ backgroundColor: config.color }}
-                      >
-                        <Icon className="w-5 h-5 text-white" />
-                      </div>
-                    );
-                  })()}
-                  <div>
-                    <h3 className="text-base font-semibold text-white leading-tight">{selectedPOI.name}</h3>
-                    <p className="text-xs text-zinc-400">{getCategoryConfig(selectedPOI.category).label}</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPOI(null)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              <div className="space-y-1.5 text-xs">
-                <div className="flex items-center gap-2 text-zinc-300">
-                  <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>{selectedPOI.address}</span>
-                </div>
-                <div className="flex items-center gap-2 text-zinc-300">
-                  <Navigation2 className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>{selectedPOI.distanceMiles.toFixed(1)} miles ahead</span>
-                </div>
-                {selectedPOI.hoursOfOperation && (
-                  <div className="flex items-center gap-2 text-zinc-300">
-                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>{selectedPOI.hoursOfOperation}</span>
-                  </div>
-                )}
-                {selectedPOI.notes && (
-                  <div className="flex items-start gap-2 text-zinc-300">
-                    <FileText className="w-3.5 h-3.5 text-zinc-500 mt-0.5" />
-                    <span>{selectedPOI.notes}</span>
-                  </div>
-                )}
-              </div>
-            </Card>
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
+
+        <div className="flex-1 min-h-0 relative">
+          <TrackingMap
+            position={position}
+            stopsAhead={stopsAheadWithDistance}
+            selectedStop={selectedStop}
+            onStopSelect={handleSelectStop}
+          />
+          <DrivingHudOverlay
+            pois={stopsAheadWithDistance}
+            maxDistanceMiles={currentRange}
+            onPinSelect={handleSelectStop}
+          />
+          {parkingLikelihood && (
+            <ParkingHudBadge
+              status={parkingLikelihood.status}
+              explanation={parkingLikelihood.explanation}
+              showExplanation={showExplanation}
+              visible={true}
+            />
+          )}
+          <TruckerAiHudControl context={aiContext} />
+        </div>
+
+        <div className="border-t px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            {SEARCH_BUTTONS.map(searchType => {
+              const isActive = activeSearch === searchType;
+              return (
+                <button
+                  key={searchType}
+                  onClick={() => handleSearchButton(searchType)}
+                  className={`border px-2 py-1 ${isActive ? 'bg-slate-200' : 'bg-white'}`}
+                >
+                  {SEARCH_LABELS[searchType]}
+                </button>
+              );
+            })}
+            <span className="text-slate-600">Range: {currentRange} mi</span>
+          </div>
+
+          <div className="mt-2 grid gap-3 md:grid-cols-2">
+            <div>
+              <div className="font-medium">Stops Ahead</div>
+              {!position ? (
+                <div className="text-slate-500">Waiting for GPS...</div>
+              ) : stopsAheadWithDistance.length === 0 ? (
+                <div className="text-slate-500">No stops in range.</div>
+              ) : (
+                <div className="mt-1 max-h-36 overflow-auto border">
+                  {stopsAheadWithDistance.map(stop => (
+                    <button
+                      key={stop.id}
+                      onClick={() => handleSelectStop(stop)}
+                      className={`flex w-full items-start justify-between gap-2 border-b px-2 py-1 text-left ${selectedStop?.id === stop.id ? 'bg-slate-100' : ''}`}
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{stop.name}</div>
+                        <div className="text-slate-600">{stop.facilityKind || 'Location'}</div>
+                      </div>
+                      <div className="shrink-0 text-slate-700">{stop.distanceMiles.toFixed(1)} mi</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="font-medium">Details</div>
+              {!selectedStop ? (
+                <div className="text-slate-500">Select a stop to view details.</div>
+              ) : (
+                <div className="mt-1 border p-2">
+                  <div className="font-medium">{selectedStop.name}</div>
+                  <div className="text-slate-600">{selectedStop.facilityKind || 'Location'}</div>
+                  <div className="text-slate-600">{selectedStop.distanceMiles.toFixed(1)} miles ahead</div>
+                  {selectedStop.address && (
+                    <div className="text-slate-600">{selectedStop.address}</div>
+                  )}
+                  {selectedStop.hoursOfOperation && (
+                    <div className="text-slate-600">Hours: {selectedStop.hoursOfOperation}</div>
+                  )}
+                  {selectedStop.notes && (
+                    <div className="text-slate-600">Notes: {selectedStop.notes}</div>
+                  )}
+                  
+                  {/* Show parking likelihood if this is the same stop as HUD */}
+                  {parkingLikelihood && selectedStop.id === stopsAheadWithDistance.find(
+                    s => s.facilityKind === 'truck stop' || s.facilityKind === 'rest area'
+                  )?.id && (
+                    <div className="mt-2 pt-2 border-t">
+                      <div className="text-xs font-medium text-slate-700 mb-1">Parking Likelihood</div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          parkingLikelihood.status === 'LIKELY_AVAILABLE' ? 'bg-green-100 text-green-700' :
+                          parkingLikelihood.status === 'UNCERTAIN' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {parkingLikelihood.status === 'LIKELY_AVAILABLE' ? '🟢 Available' :
+                           parkingLikelihood.status === 'UNCERTAIN' ? '🟡 Uncertain' :
+                           '🔴 Likely Full'}
+                        </span>
+                      </div>
+                      {showExplanation && (
+                        <div className="text-xs text-slate-600 mt-1">
+                          {parkingLikelihood.explanation}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

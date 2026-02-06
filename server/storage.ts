@@ -1,12 +1,12 @@
 
 import { 
-  locations, pins, users,
+  locations, pins, users, userPurchases, parkingPings,
   type Location, type InsertLocation, type Pin, type InsertPin, 
   type LocationWithPins, type CreateLocationRequest, type UpdateLocationRequest,
-  type User, type InsertUser
+  type User, type InsertUser, type UserPurchase, type ParkingPing
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -26,6 +26,11 @@ export interface IStorage {
   createLocation(data: CreateLocationRequest): Promise<LocationWithPins>;
   updateLocation(id: string, data: UpdateLocationRequest): Promise<LocationWithPins | undefined>;
   deleteLocation(id: string): Promise<void>;
+  // Purchase methods
+  getPurchase(userId: number, purchaseType: string): Promise<UserPurchase | undefined>;
+  createPurchase(userId: number, purchaseType: string): Promise<UserPurchase>;
+  // Parking ping logging (anonymous)
+  logParkingPing(stopId: string, hour: number, dayType: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -140,6 +145,65 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLocation(id: string): Promise<void> {
     await db.delete(locations).where(eq(locations.id, id));
+  }
+
+  // Purchase methods
+  async getPurchase(userId: number, purchaseType: string): Promise<UserPurchase | undefined> {
+    const [purchase] = await db
+      .select()
+      .from(userPurchases)
+      .where(
+        and(
+          eq(userPurchases.userId, userId),
+          eq(userPurchases.purchaseType, purchaseType as any)
+        )
+      );
+    return purchase;
+  }
+
+  async createPurchase(userId: number, purchaseType: string): Promise<UserPurchase> {
+    const [purchase] = await db
+      .insert(userPurchases)
+      .values({
+        userId,
+        purchaseType: purchaseType as any,
+      })
+      .returning();
+    return purchase;
+  }
+
+  // Parking ping logging (anonymous aggregate data)
+  async logParkingPing(stopId: string, hour: number, dayType: string): Promise<void> {
+    // Try to find existing ping record for this stop/hour/dayType combo
+    const [existing] = await db
+      .select()
+      .from(parkingPings)
+      .where(
+        and(
+          eq(parkingPings.stopId, stopId),
+          eq(parkingPings.hour, hour),
+          eq(parkingPings.dayType, dayType as any)
+        )
+      );
+
+    if (existing) {
+      // Increment the count
+      await db
+        .update(parkingPings)
+        .set({
+          pingCount: existing.pingCount + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(parkingPings.id, existing.id));
+    } else {
+      // Create new record
+      await db.insert(parkingPings).values({
+        stopId,
+        hour,
+        dayType: dayType as any,
+        pingCount: 1,
+      });
+    }
   }
 }
 

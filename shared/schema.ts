@@ -108,6 +108,28 @@ export const fullnessReports = pgTable("fullness_reports", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// One-time purchases for paid features
+export const purchaseTypeEnum = ["parkingInsights"] as const;
+
+export const userPurchases = pgTable("user_purchases", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  purchaseType: text("purchase_type", { enum: purchaseTypeEnum }).notNull(),
+  purchasedAt: timestamp("purchased_at").defaultNow().notNull(),
+});
+
+// Aggregate parking likelihood pings (no PII)
+export const dayTypeEnum = ["weekday", "weekend"] as const;
+
+export const parkingPings = pgTable("parking_pings", {
+  id: serial("id").primaryKey(),
+  stopId: text("stop_id").notNull(), // locationId or external ID
+  hour: integer("hour").notNull(), // 0-23
+  dayType: text("day_type", { enum: dayTypeEnum }).notNull(),
+  pingCount: integer("ping_count").default(1).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // === RELATIONS ===
 export const locationsRelations = relations(locations, ({ many }) => ({
   pins: many(pins),
@@ -192,3 +214,10 @@ export type FullnessReport = typeof fullnessReports.$inferSelect;
 export type UserEvent = typeof userEvents.$inferSelect;
 export type InsertUserEvent = typeof userEvents.$inferInsert;
 export type UserPreference = typeof userPreferences.$inferSelect;
+
+// Purchase types
+export type UserPurchase = typeof userPurchases.$inferSelect;
+export type InsertUserPurchase = typeof userPurchases.$inferInsert;
+
+// Parking ping types
+export type ParkingPing = typeof parkingPings.$inferSelect;

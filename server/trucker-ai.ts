@@ -18,6 +18,16 @@ interface WeatherAlert {
   instruction: string;
 }
 
+interface AiContextPayload {
+  drivingState?: "driving" | "stopped" | "unknown";
+  speedMph?: number | null;
+  position?: { lat: number; lng: number } | null;
+  upcomingPois?: Array<{ name: string; distanceMiles: number; facilityKind?: string }>;
+  nextStopEtaMinutes?: number | null;
+  traffic?: { status: "unavailable" };
+  roadConditions?: { status: "unavailable" };
+}
+
 async function fetchWeatherAlerts(lat: number, lng: number): Promise<WeatherAlert[]> {
   try {
     const response = await fetch(
@@ -81,7 +91,35 @@ When answering location questions:
 - Mention specific amenities when relevant: reserved parking, DEF, CAT scales, truck wash
 - Warn about known problem areas or truck-unfriendly routes
 
+Safety rules:
+- Only respond when the driver asks (never initiate or interrupt).
+- If drivingState is "driving", keep responses to 1-2 short sentences.
+- If stopped, you can be slightly longer but still concise.
+- Be factual and deterministic. Do not speculate.
+- If data is missing or unavailable, say "not available".
+- Do not claim traffic or road conditions unless provided.
+
 Always prioritize driver safety and compliance with regulations.`;
+
+function buildAiContextPrompt(aiContext: AiContextPayload | undefined, weatherAlerts: WeatherAlert[]) {
+  const payload = {
+    drivingState: aiContext?.drivingState ?? "unknown",
+    speedMph: aiContext?.speedMph ?? null,
+    position: aiContext?.position ?? null,
+    upcomingPois: aiContext?.upcomingPois ?? [],
+    nextStopEtaMinutes: aiContext?.nextStopEtaMinutes ?? null,
+    traffic: aiContext?.traffic ?? { status: "unavailable" },
+    roadConditions: aiContext?.roadConditions ?? { status: "unavailable" },
+    weatherAlerts: weatherAlerts.map((alert) => ({
+      event: alert.event,
+      headline: alert.headline,
+      severity: alert.severity,
+      urgency: alert.urgency,
+    })),
+  };
+
+  return `AI_CONTEXT_JSON: ${JSON.stringify(payload)}`;
+}
 
 export async function registerTruckerAiRoutes(app: Express): Promise<void> {
   // Get all chat conversations
@@ -156,7 +194,11 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
   app.post("/api/trucker-chat/conversations/:id/messages", async (req: Request, res: Response) => {
     try {
       const conversationId = parseInt(req.params.id as string);
-      const { content, userLocation } = req.body;
+      const { content, userLocation, aiContext } = req.body as {
+        content: string;
+        userLocation?: { lat: number; lng: number } | null;
+        aiContext?: AiContextPayload;
+      };
 
       // Save user message
       await db.insert(messages).values({ conversationId, role: "user", content });
@@ -178,31 +220,37 @@ export async function registerTruckerAiRoutes(app: Express): Promise<void> {
       ];
 
       // Add location context and weather alerts if location provided
-      if (userLocation) {
+      const resolvedLocation = userLocation ?? aiContext?.position ?? null;
+
+      if (resolvedLocation) {
         chatMessages.push({
           role: "system",
-          content: `The driver's current location is approximately: Latitude ${userLocation.lat.toFixed(4)}, Longitude ${userLocation.lng.toFixed(4)}. Use this to provide location-relevant information when asked about nearby stops, routes, or conditions.`,
+          content: `The driver's current location is approximately: Latitude ${resolvedLocation.lat.toFixed(4)}, Longitude ${resolvedLocation.lng.toFixed(4)}. Use this to provide location-relevant information when asked about nearby stops, routes, or conditions.`,
         });
 
         // Fetch weather alerts for the driver's location (with timeout to avoid stalling)
         try {
           const weatherAlerts = await Promise.race([
-            fetchWeatherAlerts(userLocation.lat, userLocation.lng),
+            fetchWeatherAlerts(resolvedLocation.lat, resolvedLocation.lng),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Weather API timeout")), 3000)),
           ]).catch(() => [] as WeatherAlert[]);
 
-          if (weatherAlerts.length > 0) {
-            const alertSummary = weatherAlerts
-              .map((a) => `- ${a.event} (${a.severity}): ${a.headline}`)
-              .join("\n");
-            chatMessages.push({
-              role: "system",
-              content: `ACTIVE WEATHER ALERTS for driver's area:\n${alertSummary}\n\nProactively warn the driver about these conditions if relevant to their questions about routes, timing, or safety. For severe weather, recommend safe actions like parking, waiting it out, or alternate routes.`,
-            });
-          }
+          chatMessages.push({
+            role: "system",
+            content: buildAiContextPrompt(aiContext, weatherAlerts),
+          });
         } catch {
           // Weather API failed, continue without alerts
+          chatMessages.push({
+            role: "system",
+            content: buildAiContextPrompt(aiContext, []),
+          });
         }
+      } else {
+        chatMessages.push({
+          role: "system",
+          content: buildAiContextPrompt(aiContext, []),
+        });
       }
 
       // Add conversation history

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,9 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Mic, MicOff, Trash2, Plus, Bot, User, Loader2, Volume2, VolumeX, Square } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocations } from "@/hooks/use-locations";
+import { processDrivingState, type POIInput } from "@core/driving-engine";
+import { buildAiContext } from "@/lib/ai-context";
 
 interface Message {
   id: number;
@@ -28,7 +31,9 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userSpeedMph, setUserSpeedMph] = useState<number | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const { data: locations } = useLocations();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -78,10 +83,27 @@ export default function ChatPage() {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setUserSpeedMph(
+            typeof pos.coords.speed === "number" ? pos.coords.speed * 2.237 : null
+          );
+        },
         () => console.log("Location permission denied")
       );
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort?.();
+        } catch {
+          recognitionRef.current.stop?.();
+        }
+      }
+    };
   }, []);
 
   // Setup speech recognition with auto-send
@@ -187,7 +209,7 @@ export default function ChatPage() {
       const response = await fetch(`/api/trucker-chat/conversations/${activeConversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: userMessage, userLocation }),
+        body: JSON.stringify({ content: userMessage, userLocation, aiContext }),
         credentials: "include",
       });
 
@@ -254,6 +276,58 @@ export default function ChatPage() {
   };
 
   const messages = activeConversation?.messages || [];
+
+  const stopsAhead = useMemo(() => {
+    if (!userLocation || !locations) return [];
+
+    const pois: POIInput[] = locations
+      .filter((loc) => loc.pins && loc.pins.length > 0)
+      .map((loc) => {
+        const pin = loc.pins[0];
+        const lat = parseFloat(pin.lat);
+        const lng = parseFloat(pin.lng);
+        return {
+          id: loc.id,
+          name: loc.name,
+          lat,
+          lng,
+          category: loc.facilityKind,
+          address: loc.address,
+          hoursOfOperation: loc.hoursOfOperation || undefined,
+          notes: loc.notes,
+        };
+      })
+      .filter((poi) => !isNaN(poi.lat) && !isNaN(poi.lng));
+
+    const engineResult = processDrivingState({
+      position: {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        heading: null,
+        speed: null,
+      },
+      pois,
+      options: {
+        maxDistanceMiles: 50,
+        coneAngleDegrees: 360,
+        maxResults: 8,
+      },
+    });
+
+    return engineResult.poisAhead;
+  }, [locations, userLocation]);
+
+  const aiContext = useMemo(() => {
+    return buildAiContext({
+      speedMph: userSpeedMph,
+      position: userLocation,
+      upcomingPois: stopsAhead.map((poi) => ({
+        name: poi.name,
+        distanceMiles: poi.distanceMiles,
+        facilityKind: poi.category,
+      })),
+    });
+  }, [stopsAhead, userLocation, userSpeedMph]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)]">

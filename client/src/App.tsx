@@ -16,6 +16,8 @@ import TrackingView from "@/pages/TrackingView";
 import DrivingScreen from "@/pages/DrivingScreen";
 import ChatPage from "@/pages/ChatPage";
 import SettingsPage from "@/pages/SettingsPage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 
@@ -29,6 +31,8 @@ function Router() {
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/new" component={CreateLocation} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
+      <ProtectedRoute path="/privacy" component={PrivacyPolicyPage} />
+      <ProtectedRoute path="/terms" component={TermsOfServicePage} />
       <ProtectedRoute path="/locations/:id" component={LocationDetail} />
       <ProtectedRoute path="/locations/:id/edit" component={EditLocation} />
       <Route path="/auth" component={AuthPage} />

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useLocation, useDeleteLocation } from "@/hooks/use-locations";
-import { Link, useRoute } from "wouter";
+import { useState, useEffect } from "react";
+import { useLocation as useLocationQuery, useDeleteLocation } from "@/hooks/use-locations";
+import { Link, useLocation, useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +22,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ParkingLikelihoodBadge } from "@/components/ParkingLikelihoodBadge";
+import { useShowExplanation } from "@/hooks/use-parking-insights";
+import { locationToStopProfile } from "@shared/parking-profile-mapper";
+import { getParkingLikelihood } from "@shared/parking-likelihood";
+import { logParkingPing } from "@/lib/parking-ping";
 
 type FullnessStatus = "empty" | "moderate" | "limited" | "full";
 
@@ -35,11 +40,13 @@ const statusConfig: Record<FullnessStatus, { label: string; color: string; bgCol
 export default function LocationDetail() {
   const [match, params] = useRoute("/locations/:id");
   const id = params?.id || "";
+  const [, setLocation] = useLocation();
   const [showReportPicker, setShowReportPicker] = useState(false);
   const queryClient = useQueryClient();
   
-  const { data: location, isLoading, error } = useLocation(id);
+  const { data: location, isLoading, error } = useLocationQuery(id);
   const deleteMutation = useDeleteLocation();
+  const showExplanation = useShowExplanation();
 
   const [reportError, setReportError] = useState<string | null>(null);
 
@@ -62,6 +69,20 @@ export default function LocationDetail() {
     totalReports: fullnessData?.totalReports || 0,
     statusCounts: fullnessData?.statusCounts || { empty: 0, moderate: 0, limited: 0, full: 0 },
   };
+
+  // Parking likelihood prediction
+  const parkingLikelihood = location ? (() => {
+    const profile = locationToStopProfile(location);
+    if (!profile) return null;
+    return getParkingLikelihood(profile, Date.now());
+  })() : null;
+
+  // Log parking ping when likelihood is shown (fire-and-forget)
+  useEffect(() => {
+    if (parkingLikelihood && location?.id) {
+      logParkingPing(location.id);
+    }
+  }, [parkingLikelihood, location?.id]);
 
   // Submit fullness report mutation
   const submitReport = useMutation({
@@ -87,7 +108,7 @@ export default function LocationDetail() {
   if (isLoading) return <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
   if (error || !location) return <div className="text-center p-20 text-destructive">Error loading location</div>;
 
-  const pins = location.pins.map(p => ({
+  const pins = location.pins.map((p: any) => ({
     ...p,
     id: p.id,
     type: p.type as "entry" | "exit",
@@ -101,8 +122,9 @@ export default function LocationDetail() {
     : [39.8283, -98.5795];
 
   const handleDelete = () => {
-    deleteMutation.mutate(id);
-    window.location.href = "/";
+    deleteMutation.mutate(id, {
+      onSuccess: () => setLocation("/list"),
+    });
   };
 
   return (
@@ -159,9 +181,9 @@ export default function LocationDetail() {
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex justify-between items-end pointer-events-none">
           <div className="space-y-1">
-             <Badge className="bg-primary text-primary-foreground pointer-events-auto">
+             <div className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-medium pointer-events-auto">
                {location.locationType}
-             </Badge>
+             </div>
           </div>
           <div className="text-xs text-white/70 font-mono">
             {location.pins.length} Verified Points
@@ -235,6 +257,24 @@ export default function LocationDetail() {
              </p>
            </ScrollArea>
         </Card>
+
+        {/* Parking Likelihood Prediction (Time-based) */}
+        {parkingLikelihood && (
+          <Card className="p-6 border-primary/30 bg-primary/5 space-y-4 md:col-span-2 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-lg mb-1">Parking Likelihood</h3>
+                <p className="text-xs text-muted-foreground">Based on time patterns</p>
+              </div>
+            </div>
+
+            <ParkingLikelihoodBadge
+              status={parkingLikelihood.status}
+              explanation={parkingLikelihood.explanation}
+              showExplanation={showExplanation}
+            />
+          </Card>
+        )}
 
         {/* Crowdsourced Parking Status */}
         <Card className="p-6 border-border/50 space-y-4 md:col-span-2 shadow-lg">

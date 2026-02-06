@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Search, MapPin, Truck, Clock, Navigation, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -11,10 +11,16 @@ export default function LocationList() {
   const { data: locations, isLoading } = useLocations();
   const [search, setSearch] = useState("");
 
-  const filteredLocations = locations?.filter(loc => 
-    loc.name.toLowerCase().includes(search.toLowerCase()) || 
-    loc.address.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredLocations = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    if (!normalizedSearch) return locations || [];
+
+    return (locations || []).filter(loc => {
+      const name = loc.name?.toLowerCase() || "";
+      const address = loc.address?.toLowerCase() || "";
+      return name.includes(normalizedSearch) || address.includes(normalizedSearch);
+    });
+  }, [locations, search]);
 
   return (
     <div className="space-y-6 pb-20">

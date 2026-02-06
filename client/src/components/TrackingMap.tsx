@@ -17,27 +17,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const truckIcon = new L.DivIcon({
-  html: `<div style="
-    width: 32px;
-    height: 32px;
-    background: #f97316;
-    border: 3px solid white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  ">
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="white">
-      <path d="M18 4H6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h1c0 1.1.9 2 2 2s2-.9 2-2h2c0 1.1.9 2 2 2s2-.9 2-2h1c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM6 12V6h5v6H6zm12 0h-5V6h5v6z"/>
-    </svg>
-  </div>`,
-  className: 'truck-marker',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
-
 const stopIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -139,7 +118,7 @@ export function TrackingMap({ position, stopsAhead, selectedStop, onStopSelect }
 
       {position && (
         <>
-          <Marker position={[position.lat, position.lng]} icon={truckIcon}>
+          <Marker position={[position.lat, position.lng]}>
             <Popup>
               <div className="text-sm">
                 <div className="font-bold mb-1">Your Location</div>

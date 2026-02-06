@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Plus, Locate, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export default function MapView() {
@@ -70,27 +70,32 @@ export default function MapView() {
 
   if (isLoading) return <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
 
-  const allPins = (locations || []).flatMap(loc => 
-    loc.pins.map(p => ({
-      ...p,
-      type: p.type as "entry" | "exit",
-      label: p.label,
-      isSeeded: loc.isSeeded,
-      fullnessStatus: (fullnessSummary?.[loc.id] || null) as FullnessStatus,
-      locationInfo: {
-        name: loc.name,
-        address: loc.address,
-        facilityKind: loc.facilityKind,
-        hoursOfOperation: loc.hoursOfOperation,
-        notes: loc.notes,
-        id: loc.id,
-        fullnessStatus: (fullnessSummary?.[loc.id] || null) as FullnessStatus
-      }
-    }))
-  );
+  const allPins = useMemo(() => {
+    return (locations || []).flatMap(loc => 
+      loc.pins.map(p => ({
+        ...p,
+        type: p.type as "entry" | "exit",
+        label: p.label,
+        isSeeded: loc.isSeeded,
+        fullnessStatus: (fullnessSummary?.[loc.id] || null) as FullnessStatus,
+        locationInfo: {
+          name: loc.name,
+          address: loc.address,
+          facilityKind: loc.facilityKind,
+          hoursOfOperation: loc.hoursOfOperation,
+          notes: loc.notes,
+          id: loc.id,
+          fullnessStatus: (fullnessSummary?.[loc.id] || null) as FullnessStatus
+        }
+      }))
+    );
+  }, [locations, fullnessSummary]);
 
-  const mapCenter: [number, number] = userLocation || [39.8283, -98.5795];
-  const mapZoom = userLocation ? 12 : 4;
+  const mapCenter = useMemo<[number, number]>(() => {
+    return userLocation || [39.8283, -98.5795];
+  }, [userLocation]);
+
+  const mapZoom = useMemo(() => (userLocation ? 12 : 4), [userLocation]);
 
   return (
     <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)] flex flex-col gap-4">
