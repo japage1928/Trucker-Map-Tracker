@@ -13,10 +13,19 @@ export function useHOSTracking() {
     if (stored) {
       try {
         setHos(JSON.parse(stored));
+        return;
       } catch {
         // Ignore parse error
       }
     }
+    const initial: HOSTracking = {
+      dutyStatus: 'OFF',
+      driveTimeRemainingHours: MAX_DRIVING_HOURS,
+      onDutyRemainingHours: MAX_ON_DUTY_HOURS,
+      lastUpdated: new Date().toISOString(),
+    };
+    setHos(initial);
+    localStorage.setItem(HOS_STORAGE_KEY, JSON.stringify(initial));
   }, []);
 
   const updateHOS = (input: HOSInput) => {
