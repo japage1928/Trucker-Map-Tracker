@@ -105,7 +105,7 @@ export default function PrivacyPolicyPage() {
                   If you have questions about this Privacy Policy, contact:
                 </p>
                 <p className="text-sm text-primary mt-2">
-                  [YOUR CONTACT EMAIL]
+                  japage628@gmail.com
                 </p>
               </section>
             </div>
