@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, LogOut, Bell, MapPin, Shield, FileText, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
+import { HOSTracker } from "@/components/HOSTracker";
 
 export default function SettingsPage() {
   const { user, logoutMutation } = useAuth();
@@ -60,6 +61,9 @@ export default function SettingsPage() {
           <p className="text-gray-400">Coming soon: Default map view, preferred truck stops</p>
         </CardContent>
       </Card>
+
+      {/* HOS Tracking */}
+      <HOSTracker />
 
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>

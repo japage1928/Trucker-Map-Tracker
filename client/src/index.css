@@ -39,6 +39,12 @@
   
   --font-display: 'Chakra Petch', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Parking status colors */
+  --status-empty: 120 100% 40%;
+  --status-moderate: 45 100% 50%;
+  --status-limited: 25 100% 50%;
+  --status-full: 0 100% 45%;
 }
 
 @layer base {
@@ -50,6 +56,24 @@
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-wide uppercase;
+  }
+}
+
+@layer components {
+  .status-available {
+    @apply bg-[hsl(var(--status-empty)/0.15)] text-[hsl(var(--status-empty)/1)] border border-[hsl(var(--status-empty)/0.3)];
+  }
+  
+  .status-uncertain {
+    @apply bg-[hsl(var(--status-moderate)/0.15)] text-[hsl(var(--status-moderate)/1)] border border-[hsl(var(--status-moderate)/0.3)];
+  }
+  
+  .status-full {
+    @apply bg-[hsl(var(--status-full)/0.15)] text-[hsl(var(--status-full)/1)] border border-[hsl(var(--status-full)/0.3)];
+  }
+
+  .glass-card {
+    @apply rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm;
   }
 }
 

@@ -19,26 +19,22 @@ interface ParkingLikelihoodBadgeProps {
 const STATUS_CONFIG: Record<ParkingLikelihoodStatus, {
   icon: string;
   label: string;
-  color: string;
-  bgColor: string;
+  className: string;
 }> = {
   LIKELY_AVAILABLE: {
-    icon: "🟢",
+    icon: "✓",
     label: "Likely Available",
-    color: "text-green-700",
-    bgColor: "bg-green-50 border-green-200",
+    className: "status-available",
   },
   UNCERTAIN: {
-    icon: "🟡",
+    icon: "?",
     label: "Uncertain",
-    color: "text-yellow-700",
-    bgColor: "bg-yellow-50 border-yellow-200",
+    className: "status-uncertain",
   },
   LIKELY_FULL: {
-    icon: "🔴",
+    icon: "✕",
     label: "Likely Full",
-    color: "text-red-700",
-    bgColor: "bg-red-50 border-red-200",
+    className: "status-full",
   },
 };
 
@@ -55,10 +51,10 @@ export function ParkingLikelihoodBadge({
     // Compact mode for HUD: icon + label only
     return (
       <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${config.bgColor} ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${config.className}`}
       >
         <span className="text-sm">{config.icon}</span>
-        <span className={`text-xs font-medium ${config.color}`}>
+        <span className="text-xs font-medium">
           {config.label}
         </span>
       </div>
@@ -68,15 +64,15 @@ export function ParkingLikelihoodBadge({
   // Full mode for detail cards
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${config.bgColor}`}>
+      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${config.className}`}>
         <span className="text-base">{config.icon}</span>
-        <span className={`text-sm font-semibold ${config.color}`}>
+        <span className="text-sm font-semibold">
           {config.label}
         </span>
       </div>
       
       {showExplanation && explanation && (
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <p className="text-sm text-muted-foreground leading-relaxed">
           {explanation}
         </p>
       )}
@@ -112,16 +108,16 @@ export function ParkingHudBadge({
       className="fixed bottom-20 left-4 z-10 pointer-events-none"
       style={{ maxWidth: "240px" }}
     >
-      <div className={`rounded-lg shadow-lg border-2 ${config.bgColor} backdrop-blur-sm bg-opacity-95 p-3`}>
+      <div className={`rounded-lg shadow-lg border glass-card backdrop-blur-md bg-black/40 p-3 ${config.className}`}>
         <div className="flex items-center gap-2">
-          <span className="text-lg">{config.icon}</span>
-          <span className={`text-sm font-bold ${config.color}`}>
+          <span className="text-lg font-bold">{config.icon}</span>
+          <span className="text-sm font-bold">
             {config.label}
           </span>
         </div>
         
         {showExplanation && explanation && (
-          <p className="text-xs text-gray-600 mt-2 leading-snug">
+          <p className="text-xs mt-2 leading-snug opacity-90">
             {explanation}
           </p>
         )}

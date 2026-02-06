@@ -375,19 +375,46 @@ export default function DrivingScreen() {
                 <div className="text-slate-500">No stops in range.</div>
               ) : (
                 <div className="mt-1 max-h-36 overflow-auto border">
-                  {stopsAheadWithDistance.map(stop => (
-                    <button
-                      key={stop.id}
-                      onClick={() => handleSelectStop(stop)}
-                      className={`flex w-full items-start justify-between gap-2 border-b px-2 py-1 text-left ${selectedStop?.id === stop.id ? 'bg-slate-100' : ''}`}
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{stop.name}</div>
-                        <div className="text-slate-600">{stop.facilityKind || 'Location'}</div>
-                      </div>
-                      <div className="shrink-0 text-slate-700">{stop.distanceMiles.toFixed(1)} mi</div>
-                    </button>
-                  ))}
+                  {stopsAheadWithDistance.map(stop => {
+                    // Calculate parking likelihood for this stop
+                    const parkingStatus = (() => {
+                      if (!locations || (stop.facilityKind !== 'truck stop' && stop.facilityKind !== 'rest area')) {
+                        return null;
+                      }
+                      const location = locations.find(loc => loc.id === stop.id);
+                      if (!location) return null;
+                      const profile = locationToStopProfile(location);
+                      if (!profile) return null;
+                      return getParkingLikelihood(profile, Date.now());
+                    })();
+
+                    return (
+                      <button
+                        key={stop.id}
+                        onClick={() => handleSelectStop(stop)}
+                        className={`flex w-full items-start justify-between gap-2 border-b px-2 py-1 text-left ${selectedStop?.id === stop.id ? 'bg-slate-100' : ''}`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="truncate font-medium">{stop.name}</div>
+                            {parkingStatus && (
+                              <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                                parkingStatus.status === 'LIKELY_AVAILABLE' ? 'status-available' :
+                                parkingStatus.status === 'UNCERTAIN' ? 'status-uncertain' :
+                                'status-full'
+                              }`}>
+                                {parkingStatus.status === 'LIKELY_AVAILABLE' ? '✓' :
+                                 parkingStatus.status === 'UNCERTAIN' ? '?' :
+                                 '✕'}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-slate-600">{stop.facilityKind || 'Location'}</div>
+                        </div>
+                        <div className="shrink-0 text-slate-700">{stop.distanceMiles.toFixed(1)} mi</div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -411,30 +438,39 @@ export default function DrivingScreen() {
                     <div className="text-slate-600">Notes: {selectedStop.notes}</div>
                   )}
                   
-                  {/* Show parking likelihood if this is the same stop as HUD */}
-                  {parkingLikelihood && selectedStop.id === stopsAheadWithDistance.find(
-                    s => s.facilityKind === 'truck stop' || s.facilityKind === 'rest area'
-                  )?.id && (
-                    <div className="mt-2 pt-2 border-t">
-                      <div className="text-xs font-medium text-slate-700 mb-1">Parking Likelihood</div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          parkingLikelihood.status === 'LIKELY_AVAILABLE' ? 'bg-green-100 text-green-700' :
-                          parkingLikelihood.status === 'UNCERTAIN' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {parkingLikelihood.status === 'LIKELY_AVAILABLE' ? '🟢 Available' :
-                           parkingLikelihood.status === 'UNCERTAIN' ? '🟡 Uncertain' :
-                           '🔴 Likely Full'}
-                        </span>
-                      </div>
-                      {showExplanation && (
-                        <div className="text-xs text-slate-600 mt-1">
-                          {parkingLikelihood.explanation}
+                  {/* Show parking likelihood for truck stops and rest areas */}
+                  {(() => {
+                    if (!locations || (selectedStop.facilityKind !== 'truck stop' && selectedStop.facilityKind !== 'rest area')) {
+                      return null;
+                    }
+                    const location = locations.find(loc => loc.id === selectedStop.id);
+                    if (!location) return null;
+                    const profile = locationToStopProfile(location);
+                    if (!profile) return null;
+                    const selectedParkingLikelihood = getParkingLikelihood(profile, Date.now());
+                    
+                    return selectedParkingLikelihood ? (
+                      <div className="mt-2 pt-2 border-t">
+                        <div className="text-xs font-medium text-slate-700 mb-1">Parking Likelihood</div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            selectedParkingLikelihood.status === 'LIKELY_AVAILABLE' ? 'status-available' :
+                            selectedParkingLikelihood.status === 'UNCERTAIN' ? 'status-uncertain' :
+                            'status-full'
+                          }`}>
+                            {selectedParkingLikelihood.status === 'LIKELY_AVAILABLE' ? '✓ Available' :
+                             selectedParkingLikelihood.status === 'UNCERTAIN' ? '? Uncertain' :
+                             '✕ Likely Full'}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  )}
+                        {showExplanation && (
+                          <div className="text-xs text-slate-600 mt-1">
+                            {selectedParkingLikelihood.explanation}
+                          </div>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </div>
