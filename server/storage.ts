@@ -1,64 +1,25 @@
 
 import { 
-  locations, pins, users, userPurchases, parkingPings,
+  locations, pins, userPurchases, parkingPings,
   type Location, type InsertLocation, type Pin, type InsertPin, 
   type LocationWithPins, type CreateLocationRequest, type UpdateLocationRequest,
-  type User, type InsertUser, type UserPurchase, type ParkingPing
+  type UserPurchase, type ParkingPing
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import session from "express-session";
-import connectPg from "connect-pg-simple";
-import { pool } from "./db";
-
-const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
-  // User methods for authentication
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  // Session store for express-session
-  sessionStore: session.Store;
-  // Location methods
   getLocations(): Promise<LocationWithPins[]>;
   getLocation(id: string): Promise<LocationWithPins | undefined>;
   createLocation(data: CreateLocationRequest): Promise<LocationWithPins>;
   updateLocation(id: string, data: UpdateLocationRequest): Promise<LocationWithPins | undefined>;
   deleteLocation(id: string): Promise<void>;
-  // Purchase methods
-  getPurchase(userId: number, purchaseType: string): Promise<UserPurchase | undefined>;
-  createPurchase(userId: number, purchaseType: string): Promise<UserPurchase>;
-  // Parking ping logging (anonymous)
+  getPurchase(userId: string, purchaseType: string): Promise<UserPurchase | undefined>;
+  createPurchase(userId: string, purchaseType: string): Promise<UserPurchase>;
   logParkingPing(stopId: string, hour: number, dayType: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.Store;
-
-  constructor() {
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true 
-    });
-  }
-
-  // User authentication methods
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
-  }
-
-  async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
-    return newUser;
-  }
-
   async getLocations(): Promise<LocationWithPins[]> {
     const allLocations = await db.select().from(locations);
     const results: LocationWithPins[] = [];
@@ -82,7 +43,6 @@ export class DatabaseStorage implements IStorage {
   async createLocation(data: CreateLocationRequest): Promise<LocationWithPins> {
     const { pins: pinsData, ...locationData } = data;
     
-    // Ensure lastVerified is set on creation
     const [newLocation] = await db.insert(locations).values({
       ...locationData,
       lastVerified: new Date()
@@ -93,7 +53,6 @@ export class DatabaseStorage implements IStorage {
       const pinsToInsert = pinsData.map(p => ({
         ...p,
         locationId: newLocation.id,
-        // Ensure lat/lng are strings as per schema
         lat: String(p.lat),
         lng: String(p.lng)
       }));
@@ -111,18 +70,15 @@ export class DatabaseStorage implements IStorage {
 
     const { pins: pinsData, ...locationData } = data;
     
-    // Update location fields if provided
     let updatedLocation = existing;
     if (Object.keys(locationData).length > 0) {
       const [updated] = await db.update(locations)
-        .set({ ...locationData, lastVerified: new Date() }) // Auto-update lastVerified
+        .set({ ...locationData, lastVerified: new Date() })
         .where(eq(locations.id, id))
         .returning();
       updatedLocation = updated as LocationWithPins;
     }
 
-    // Handle pins: simple strategy = delete all and recreate if pins are provided
-    // Ideally we would diff them, but overwrite is acceptable for this MVP
     let finalPins = existing.pins;
     if (pinsData) {
       await db.delete(pins).where(eq(pins.locationId, id));
@@ -147,8 +103,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(locations).where(eq(locations.id, id));
   }
 
-  // Purchase methods
-  async getPurchase(userId: number, purchaseType: string): Promise<UserPurchase | undefined> {
+  async getPurchase(userId: string, purchaseType: string): Promise<UserPurchase | undefined> {
     const [purchase] = await db
       .select()
       .from(userPurchases)
@@ -161,7 +116,7 @@ export class DatabaseStorage implements IStorage {
     return purchase;
   }
 
-  async createPurchase(userId: number, purchaseType: string): Promise<UserPurchase> {
+  async createPurchase(userId: string, purchaseType: string): Promise<UserPurchase> {
     const [purchase] = await db
       .insert(userPurchases)
       .values({
@@ -172,9 +127,7 @@ export class DatabaseStorage implements IStorage {
     return purchase;
   }
 
-  // Parking ping logging (anonymous aggregate data)
   async logParkingPing(stopId: string, hour: number, dayType: string): Promise<void> {
-    // Try to find existing ping record for this stop/hour/dayType combo
     const [existing] = await db
       .select()
       .from(parkingPings)
@@ -187,7 +140,6 @@ export class DatabaseStorage implements IStorage {
       );
 
     if (existing) {
-      // Increment the count
       await db
         .update(parkingPings)
         .set({
@@ -196,7 +148,6 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(parkingPings.id, existing.id));
     } else {
-      // Create new record
       await db.insert(parkingPings).values({
         stopId,
         hour,

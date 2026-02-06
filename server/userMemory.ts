@@ -13,7 +13,7 @@ interface AlertIgnoreCount {
 }
 
 export async function logUserEvent(
-  userId: number,
+  userId: string,
   eventType: EventType,
   options?: {
     locationId?: string;
@@ -34,7 +34,7 @@ export async function logUserEvent(
   await updateUserPreferences(userId);
 }
 
-async function updateUserPreferences(userId: number) {
+async function updateUserPreferences(userId: string) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -99,7 +99,7 @@ async function updateUserPreferences(userId: number) {
   }
 }
 
-export async function getPreferredStops(userId: number): Promise<string[]> {
+export async function getPreferredStops(userId: string): Promise<string[]> {
   const prefs = await db
     .select()
     .from(userPreferences)
@@ -114,7 +114,7 @@ export async function getPreferredStops(userId: number): Promise<string[]> {
     .map(([cat]) => cat);
 }
 
-export async function getAvgShutdownTime(userId: number): Promise<number | null> {
+export async function getAvgShutdownTime(userId: string): Promise<number | null> {
   const prefs = await db
     .select()
     .from(userPreferences)
@@ -124,7 +124,7 @@ export async function getAvgShutdownTime(userId: number): Promise<number | null>
   return prefs.length > 0 ? prefs[0].avgShutdownHour : null;
 }
 
-export async function getIgnoredAlertTypes(userId: number): Promise<string[]> {
+export async function getIgnoredAlertTypes(userId: string): Promise<string[]> {
   const prefs = await db
     .select()
     .from(userPreferences)
@@ -141,7 +141,7 @@ export async function getIgnoredAlertTypes(userId: number): Promise<string[]> {
     .map(([type]) => type);
 }
 
-export async function getUserPreferences(userId: number) {
+export async function getUserPreferences(userId: string) {
   const prefs = await db
     .select()
     .from(userPreferences)

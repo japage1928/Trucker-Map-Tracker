@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 
 export function Navigation() {
   const [location] = useLocation();
-  const { user, logoutMutation } = useAuth();
+  const { user, logout, isLoggingOut } = useAuth();
+
+  const displayName = user?.firstName
+    ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+    : user?.email || "Driver";
 
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
@@ -48,19 +52,28 @@ export function Navigation() {
 
         <div className="p-4 border-t border-border/50">
           {user && (
-            <div className="mb-3 text-sm text-muted-foreground truncate">
-              {user.username}
+            <div className="flex items-center gap-2 mb-3">
+              {user.profileImageUrl && (
+                <img
+                  src={user.profileImageUrl}
+                  alt=""
+                  className="w-8 h-8 rounded-full"
+                />
+              )}
+              <span className="text-sm text-muted-foreground truncate">
+                {displayName}
+              </span>
             </div>
           )}
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
-            onClick={() => logoutMutation.mutate()}
-            disabled={logoutMutation.isPending}
-          >
-            <LogOut className="w-4 h-4" />
-            {logoutMutation.isPending ? "Signing out..." : "Sign Out"}
-          </Button>
+          <a href="/api/logout" className="block">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </Button>
+          </a>
         </div>
       </nav>
 
@@ -82,15 +95,13 @@ export function Navigation() {
               </div>
             </Link>
           ))}
-          {/* Logout button on mobile */}
-          <button
-            onClick={() => logoutMutation.mutate()}
-            disabled={logoutMutation.isPending}
+          <a
+            href="/api/logout"
             className="flex-1 flex flex-col items-center justify-center h-full gap-1 text-muted-foreground hover:text-destructive"
           >
             <LogOut className="w-6 h-6" />
             <span className="text-[10px] font-medium uppercase tracking-wide">Logout</span>
-          </button>
+          </a>
         </div>
       </nav>
     </>
