@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Navigation } from "@/components/Navigation";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { useTripAutoTracking } from "@/hooks/use-trip-auto-tracking";
 
 import HomePage from "@/pages/HomePage";
 import LocationList from "@/pages/LocationList";
@@ -45,6 +46,7 @@ function Router() {
 
 function AppContent() {
   const { user } = useAuth();
+  useTripAutoTracking(Boolean(user));
   
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans">

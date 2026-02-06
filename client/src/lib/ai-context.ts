@@ -14,10 +14,19 @@ export interface AiTripSummary {
   title: string;
   origin: string;
   destination: string;
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
   plannedDate?: string;
   distanceMiles?: number;
   etaMinutes?: number;
   notes?: string;
+  tripType?: "business" | "personal";
+  status?: "planned" | "active" | "completed";
+  startedAt?: string;
+  endedAt?: string;
+  autoDetected?: boolean;
   createdAt: string;
 }
 

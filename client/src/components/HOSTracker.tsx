@@ -1,18 +1,49 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Clock, AlertCircle, RefreshCw } from 'lucide-react';
 import { useHOSTracking } from '@/hooks/use-hos-tracking';
-import type { HOSInput, DutyStatus } from '@shared/hos-types';
+import type { DutyStatus } from '@shared/hos-types';
 import { MAX_DRIVING_HOURS, MAX_ON_DUTY_HOURS } from '@shared/hos-types';
+import { useTracking } from '@/hooks/use-tracking';
 
 const DUTY_STATUSES: DutyStatus[] = ['OFF', 'ON', 'DRIVING', 'SLEEPER'];
+const AUTO_STATUS_KEY = 'hos-auto-status-enabled';
+const SPEED_DRIVING_MPH = 5;
 
 export function HOSTracker() {
   const { hos, updateHOS, setDutyStatus, reset } = useHOSTracking();
   const [showForm, setShowForm] = useState(false);
-  const [driveUsed, setDriveUsed] = useState(0);
-  const [onDutyUsed, setOnDutyUsed] = useState(0);
+  const [driveInput, setDriveInput] = useState(0);
+  const [onDutyInput, setOnDutyInput] = useState(0);
+  const [editMode, setEditMode] = useState<'used' | 'remaining'>('used');
+  const [autoStatus, setAutoStatus] = useState(() => {
+    return localStorage.getItem(AUTO_STATUS_KEY) === 'true';
+  });
+
+  const { position, isTracking } = useTracking({
+    enabled: autoStatus,
+    throttleMs: 5000,
+    minDistanceMeters: 50,
+    minHeadingChange: 10,
+  });
+
+  useEffect(() => {
+    localStorage.setItem(AUTO_STATUS_KEY, String(autoStatus));
+  }, [autoStatus]);
+
+  const speedMph = useMemo(() => {
+    if (position?.speed === null || position?.speed === undefined) return null;
+    return position.speed * 2.237;
+  }, [position?.speed]);
+
+  useEffect(() => {
+    if (!autoStatus || speedMph === null || !hos) return;
+    const nextStatus: DutyStatus = speedMph >= SPEED_DRIVING_MPH ? 'DRIVING' : 'ON';
+    if (hos.dutyStatus !== nextStatus) {
+      setDutyStatus(nextStatus);
+    }
+  }, [autoStatus, speedMph, hos, setDutyStatus]);
 
   if (!hos) {
     return (
@@ -23,15 +54,26 @@ export function HOSTracker() {
   }
 
   const handleSubmit = () => {
+    if (editMode === 'remaining') {
+      const driveUsed = Math.max(0, MAX_DRIVING_HOURS - driveInput);
+      const onDutyUsed = Math.max(0, MAX_ON_DUTY_HOURS - onDutyInput);
+      updateHOS({
+        dutyStatus: hos.dutyStatus,
+        driveTimeUsedToday: driveUsed,
+        onDutyTimeUsedToday: onDutyUsed,
+      });
+      setShowForm(false);
+      return;
+    }
+
     updateHOS({
       dutyStatus: hos.dutyStatus,
-      driveTimeUsedToday: driveUsed,
-      onDutyTimeUsedToday: onDutyUsed,
+      driveTimeUsedToday: driveInput,
+      onDutyTimeUsedToday: onDutyInput,
     });
     setShowForm(false);
   };
 
-  const hoursUntilDriveReset = 34; // 10 consecutive hours of off-duty time
   const lastUpdateTime = new Date(hos.lastUpdated).toLocaleTimeString();
 
   return (
@@ -41,7 +83,7 @@ export function HOSTracker() {
           <Clock className="w-5 h-5 text-primary" />
           <h3 className="font-bold text-lg">Hours of Service (Assistive)</h3>
         </div>
-        <span className="text-xs text-muted-foreground">⚠️ Estimates only</span>
+        <span className="text-xs text-muted-foreground">Estimates only</span>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -49,36 +91,63 @@ export function HOSTracker() {
         Not legal HOS records. You remain responsible for FMCSA compliance.
       </p>
 
-      {/* Current Status Display */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Duty Status */}
         <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Current Status</p>
-          <div className="flex items-center gap-2">
-            <select
-              value={hos.dutyStatus}
-              onChange={(e) => setDutyStatus(e.target.value as DutyStatus)}
-              className="flex-1 px-2 py-1 rounded border border-border bg-background text-foreground text-sm"
+          <p className="text-xs text-muted-foreground mb-1">Auto Status (GPS)</p>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setAutoStatus((prev) => !prev)}
+              className={`px-3 py-1 rounded border text-xs uppercase tracking-wide ${
+                autoStatus ? 'border-emerald-400/60 text-emerald-300' : 'border-border text-muted-foreground'
+              }`}
             >
-              {DUTY_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+              {autoStatus ? 'On' : 'Off'}
+            </button>
+            <div className="text-[11px] text-muted-foreground">
+              {autoStatus ? (isTracking ? 'Tracking' : 'No GPS') : 'Manual'}
+            </div>
           </div>
+          {autoStatus && (
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              Speed {speedMph !== null ? `${Math.round(speedMph)} mph` : '--'} (auto status at {SPEED_DRIVING_MPH}+ mph)
+            </div>
+          )}
         </div>
 
-        {/* Last Updated */}
+        <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+          <p className="text-xs text-muted-foreground mb-1">Manual Duty Status</p>
+          <select
+            value={hos.dutyStatus}
+            onChange={(e) => setDutyStatus(e.target.value as DutyStatus)}
+            disabled={autoStatus}
+            className="w-full px-2 py-1 rounded border border-border bg-background text-foreground text-sm disabled:opacity-60"
+          >
+            {DUTY_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          {autoStatus && (
+            <div className="mt-1 text-[11px] text-muted-foreground">Auto mode is controlling status.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+          <p className="text-xs text-muted-foreground mb-1">Current Status</p>
+          <div className="text-sm font-semibold">{hos.dutyStatus}</div>
+        </div>
+
         <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
           <p className="text-xs text-muted-foreground mb-1">Last Updated</p>
           <p className="text-sm font-mono">{lastUpdateTime}</p>
         </div>
       </div>
 
-      {/* Remaining Time Display */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Drive Time Remaining */}
         <div className="p-3 rounded-lg border border-border/50">
           <p className="text-xs text-muted-foreground mb-2">Drive Time Available</p>
           <div className="space-y-1">
@@ -101,7 +170,6 @@ export function HOSTracker() {
           </div>
         </div>
 
-        {/* On-Duty Time Remaining */}
         <div className="p-3 rounded-lg border border-border/50">
           <p className="text-xs text-muted-foreground mb-2">On-Duty Time Available</p>
           <div className="space-y-1">
@@ -125,7 +193,6 @@ export function HOSTracker() {
         </div>
       </div>
 
-      {/* Warnings */}
       {hos.driveTimeRemainingHours < 1 && (
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex gap-2">
           <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -150,7 +217,6 @@ export function HOSTracker() {
         </div>
       )}
 
-      {/* Form Toggle */}
       {!showForm ? (
         <div className="flex gap-2 pt-2">
           <Button
@@ -158,7 +224,7 @@ export function HOSTracker() {
             className="flex-1"
             variant="outline"
           >
-            Update Hours
+            Adjust Clocks
           </Button>
           <Button
             onClick={reset}
@@ -172,8 +238,20 @@ export function HOSTracker() {
       ) : (
         <div className="space-y-3 pt-2 border-t border-border/50">
           <div>
+            <label className="text-xs text-muted-foreground block mb-2">Adjustment Mode</label>
+            <select
+              value={editMode}
+              onChange={(e) => setEditMode(e.target.value as 'used' | 'remaining')}
+              className="w-full px-2 py-1 rounded border border-border bg-background text-foreground text-sm"
+            >
+              <option value="used">Enter hours used today</option>
+              <option value="remaining">Enter hours remaining</option>
+            </select>
+          </div>
+
+          <div>
             <label className="text-xs text-muted-foreground block mb-2">
-              Drive Time Used Today (hours)
+              Drive Time {editMode === 'used' ? 'Used Today' : 'Remaining'} (hours)
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -181,8 +259,8 @@ export function HOSTracker() {
                 min="0"
                 max={MAX_DRIVING_HOURS}
                 step="0.5"
-                value={driveUsed}
-                onChange={(e) => setDriveUsed(Math.min(MAX_DRIVING_HOURS, parseFloat(e.target.value) || 0))}
+                value={driveInput}
+                onChange={(e) => setDriveInput(Math.min(MAX_DRIVING_HOURS, parseFloat(e.target.value) || 0))}
                 className="flex-1 px-3 py-2 rounded border border-border bg-background text-foreground"
               />
               <span className="text-xs text-muted-foreground">{MAX_DRIVING_HOURS}h max</span>
@@ -191,7 +269,7 @@ export function HOSTracker() {
 
           <div>
             <label className="text-xs text-muted-foreground block mb-2">
-              On-Duty Time Used Today (hours)
+              On-Duty Time {editMode === 'used' ? 'Used Today' : 'Remaining'} (hours)
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -199,8 +277,8 @@ export function HOSTracker() {
                 min="0"
                 max={MAX_ON_DUTY_HOURS}
                 step="0.5"
-                value={onDutyUsed}
-                onChange={(e) => setOnDutyUsed(Math.min(MAX_ON_DUTY_HOURS, parseFloat(e.target.value) || 0))}
+                value={onDutyInput}
+                onChange={(e) => setOnDutyInput(Math.min(MAX_ON_DUTY_HOURS, parseFloat(e.target.value) || 0))}
                 className="flex-1 px-3 py-2 rounded border border-border bg-background text-foreground"
               />
               <span className="text-xs text-muted-foreground">{MAX_ON_DUTY_HOURS}h max</span>

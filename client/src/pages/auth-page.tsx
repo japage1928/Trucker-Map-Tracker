@@ -31,7 +31,7 @@ export default function AuthPage() {
             </div>
             <CardTitle className="text-2xl">Trucker Buddy</CardTitle>
             <CardDescription>
-              Sign in to access your saved locations
+              Log in or create an account to continue
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -61,7 +61,7 @@ export default function AuthPage() {
           </div>
           <h2 className="text-3xl font-bold mb-4">Your Trucking Companion</h2>
           <p className="text-muted-foreground text-lg mb-6">
-            Save pickup and delivery locations, mark entry and exit points, and access your data anywhere - even offline.
+            Sign in to access your account and manage your tools in one place.
           </p>
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Lock className="h-4 w-4" />

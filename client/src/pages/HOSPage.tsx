@@ -12,15 +12,16 @@ export default function HOSPage() {
         <div>
           <h1 className="text-2xl font-bold text-amber-500">HOS Tracker</h1>
           <p className="text-muted-foreground">
-            Manual FMCSA HOS clocks for personal time tracking.
+            Auto status from GPS with manual clock overrides.
           </p>
         </div>
       </div>
 
       <Card className="p-4 border-border/50 bg-card/60">
         <p className="text-sm text-muted-foreground">
-          This is a manual time log for your HOS clocks. It does not auto-track duty status,
-          and it is not an ELD. You are responsible for official compliance.
+          This is a simplified HOS assistant for AI context and driver planning.
+          You can enable GPS-based status detection and manually adjust clock values.
+          It is not an ELD. You are responsible for official compliance.
         </p>
       </Card>
 

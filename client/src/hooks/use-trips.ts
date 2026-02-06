@@ -5,14 +5,24 @@ export interface TripPlan {
   title: string;
   origin: string;
   destination: string;
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
   plannedDate?: string;
   distanceMiles?: number;
   etaMinutes?: number;
   notes?: string;
+  tripType?: "business" | "personal";
+  status?: "planned" | "active" | "completed";
+  startedAt?: string;
+  endedAt?: string;
+  autoDetected?: boolean;
   createdAt: string;
 }
 
 const TRIPS_STORAGE_KEY = "driver-trips";
+const TRIPS_SYNC_EVENT = "trips:update";
 
 function loadTrips(): TripPlan[] {
   try {
@@ -27,6 +37,9 @@ function loadTrips(): TripPlan[] {
 
 function saveTrips(trips: TripPlan[]) {
   localStorage.setItem(TRIPS_STORAGE_KEY, JSON.stringify(trips));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(TRIPS_SYNC_EVENT));
+  }
 }
 
 export function useTrips() {
@@ -34,6 +47,15 @@ export function useTrips() {
 
   useEffect(() => {
     setTrips(loadTrips());
+    const handleSync = () => setTrips(loadTrips());
+    if (typeof window !== "undefined") {
+      window.addEventListener(TRIPS_SYNC_EVENT, handleSync);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener(TRIPS_SYNC_EVENT, handleSync);
+      }
+    };
   }, []);
 
   const addTrip = useCallback((trip: Omit<TripPlan, "id" | "createdAt">) => {
@@ -47,6 +69,7 @@ export function useTrips() {
       saveTrips(updated);
       return updated;
     });
+    return next;
   }, []);
 
   const removeTrip = useCallback((id: string) => {

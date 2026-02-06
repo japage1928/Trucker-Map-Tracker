@@ -15,16 +15,26 @@ export interface VoiceSessionCallbacks {
 const LISTEN_START_TONE = 880;
 const LISTEN_STOP_TONE = 660;
 const TRIPS_STORAGE_KEY = 'driver-trips';
+const TRIPS_SYNC_EVENT = 'trips:update';
 
 interface TripPlan {
   id: string;
   title: string;
   origin: string;
   destination: string;
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
   plannedDate?: string;
   distanceMiles?: number;
   etaMinutes?: number;
   notes?: string;
+  tripType?: "business" | "personal";
+  status?: "planned" | "active" | "completed";
+  startedAt?: string;
+  endedAt?: string;
+  autoDetected?: boolean;
   createdAt: string;
 }
 
@@ -76,6 +86,7 @@ function loadTrips(): TripPlan[] {
 function saveTrips(trips: TripPlan[]) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(TRIPS_STORAGE_KEY, JSON.stringify(trips));
+  window.dispatchEvent(new Event(TRIPS_SYNC_EVENT));
 }
 
 function stripTripAction(text: string): string {

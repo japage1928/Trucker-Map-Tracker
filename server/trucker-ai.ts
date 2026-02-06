@@ -51,10 +51,19 @@ interface AiContextPayload {
     title: string;
     origin: string;
     destination: string;
+    originLat?: number;
+    originLng?: number;
+    destinationLat?: number;
+    destinationLng?: number;
     plannedDate?: string;
     distanceMiles?: number;
     etaMinutes?: number;
     notes?: string;
+    tripType?: "business" | "personal";
+    status?: "planned" | "active" | "completed";
+    startedAt?: string;
+    endedAt?: string;
+    autoDetected?: boolean;
     createdAt: string;
   }>;
 }
@@ -140,6 +149,13 @@ or
 TRIP_ACTION_JSON: {"action":"trip.update","id":"<trip id>","payload":{...}}
 or
 TRIP_ACTION_JSON: {"action":"trip.delete","id":"<trip id>"}
+
+Trip payload fields can include:
+- title, origin, destination, plannedDate, distanceMiles, etaMinutes, notes
+- tripType: "business" | "personal"
+- status: "planned" | "active" | "completed"
+- startedAt, endedAt (ISO strings)
+- originLat, originLng, destinationLat, destinationLng
 
 Keep the action JSON last in the response. Do not wrap it in code fences.`;
 
